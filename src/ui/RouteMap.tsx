@@ -92,7 +92,8 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, onSe
     }
     const onMotion = () => {
       if (!m) return
-      m.options.zoomAnimation = !reduced.matches
+      // Zoom transitions stay disabled across preference changes: touch-zoom
+      // completion also reads this option instead of the cached map capability.
       m.options.fadeAnimation = !reduced.matches
       m.options.inertia = !reduced.matches
       if (reduced.matches) m.stop()
@@ -127,9 +128,12 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, onSe
         attributionControl: true,
         scrollWheelZoom: false,
         trackResize: false,
-        zoomAnimation: !reduced.matches,
+        // Leaflet 1.9.4 leaves its zoom-completion timeout alive after remove().
+        // This map remounts at layout breakpoints, so avoid that transition path
+        // through the public options while retaining normal pan and tile fades.
+        zoomAnimation: false,
         fadeAnimation: !reduced.matches,
-        markerZoomAnimation: !reduced.matches,
+        markerZoomAnimation: false,
         inertia: !reduced.matches,
         // SVG paths remain selectable; Leaflet handles their projection on zoom.
         preferCanvas: false,
