@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../src/core/planner/config';
-import { plan } from '../src/core/planner/plan';
+import { plan, rebuildPlan } from '../src/core/planner/plan';
 import { OCCASION_IDS, OCCASIONS } from '../src/core/planner/occasions';
 import { compareScores, occasionPoints, timeFit } from '../src/core/planner/score';
 import type { Dataset, PlanRequest } from '../src/core/types';
@@ -70,6 +70,28 @@ describe('hard limits', () => {
 });
 
 describe('required places and the café requirement', () => {
+  it('does not let impossible distant stops crowd a feasible stop out of the candidate cap', () => {
+    const far = Array.from({ length: 12 }, (_, i) => `F${i}`);
+    const ds = tinyDataset(['S', ...far, 'P'], [
+      ...far.flatMap((id) => twoWay(`s${id}`, 'S', id, 4000)), ...twoWay('sp', 'S', 'P', 100),
+    ], [...far.map((id) => ({ id, nodeId: id, category: 'cafe' as const, tags: ['group'], dwellDefaultMin: 10 })), { id: 'near', nodeId: 'P' }]);
+    const res = plan(ds, exactRequest({ durationMin: 60, pace: 'normal' }), THU_10AM);
+    expect(res.plans).toHaveLength(1);
+    expect(res.plans[0].visits.map((v) => v.placeId)).toEqual(['near']);
+  });
+
+  it('keeps an open café when higher ranked cafés are already closed', () => {
+    const ds = tinyDataset(['S', 'P', 'Q'], [...twoWay('sp', 'S', 'P', 100), ...twoWay('sq', 'S', 'Q', 500)], [
+      ...Array.from({ length: 4 }, (_, i) => ({
+        id: `closed${i}`, nodeId: 'P', category: 'cafe' as const, hoursStatus: 'verified' as const,
+        tags: ['group'], verifiedOpenWindows: [{ day: 4, start: '07:00', end: '09:00' }],
+      })),
+      { id: 'open', nodeId: 'Q', category: 'cafe', hoursStatus: 'verified', verifiedOpenWindows: [{ day: 4, start: '09:00', end: '17:00' }] },
+    ]);
+    const res = plan(ds, exactRequest({ durationMin: 60, requireCafe: true }), THU_10AM, { ...DEFAULT_CONFIG, maxCandidates: 3 });
+    expect(res.plans).toHaveLength(1);
+    expect(res.plans[0].visits[0].placeId).toBe('open');
+  });
   it('fails honestly when there is no way back from a stop', () => {
     const ds = tinyDataset(['S', 'P'], [['sp', 'S', 'P', 100]], [{ id: 'oneway', nodeId: 'P' }]);
     expect(plan(ds, exactRequest({ durationMin: 60 }), THU_10AM).plans).toEqual([]);
@@ -152,6 +174,17 @@ describe('deadlines: back-by, sunset and the pilot window', () => {
 });
 
 describe('input validation', () => {
+  it('rejects an invalid planning date', () => {
+    expect(plan(fixture(), request(), new Date(NaN)).blockers[0].code).toBe('INVALID_INPUT');
+  });
+
+  it('does not read inherited properties as dwell overrides', () => {
+    const ds = exactDataset();
+    ds.places[0].id = 'constructor';
+    const result = plan(ds, exactRequest(), THU_10AM);
+    expect(result.plans).toHaveLength(1);
+    expect(result.plans[0].dwellSec).toBe(10 * 60);
+  });
   it.each<[string, Partial<PlanRequest>]>([
     ['duration below range', { durationMin: 20 }],
     ['duration above range', { durationMin: 120 }],
@@ -170,6 +203,20 @@ describe('input validation', () => {
 });
 
 describe('modes', () => {
+  it('applies the same stop cap to curated walks as generated plans', () => {
+    const ds = tinyDataset(['S', 'P', 'Q', 'R'], [
+      ['sp', 'S', 'P', 100], ['pq', 'P', 'Q', 100], ['qr', 'Q', 'R', 100], ['rs', 'R', 'S', 100],
+    ], [{ id: 'p', nodeId: 'P' }, { id: 'q', nodeId: 'Q' }, { id: 'r', nodeId: 'R' }]);
+    ds.curatedWalks = [{
+      id: 'three-stops', name: 'Three stops', startNodeId: 'S', edgeIds: ['sp', 'pq', 'qr', 'rs'],
+      stops: [{ placeId: 'p', afterEdge: 1 }, { placeId: 'q', afterEdge: 2 }, { placeId: 'r', afterEdge: 3 }],
+      tags: [], verifiedAt: '2026-09-20',
+    }];
+    const req = exactRequest({ durationMin: 90, occasion: 'meeting' });
+    expect(plan(ds, req, THU_10AM).plans.every((p) => p.visits.length <= 2)).toBe(true);
+    expect(rebuildPlan(ds, req, THU_10AM, 'c:three-stops').blockers[0].code).toBe('PLAN_OUTDATED');
+    expect(rebuildPlan(ds, { ...req, occasion: 'friends' }, THU_10AM, 'c:three-stops').plans).toHaveLength(1);
+  });
   it('rain mode schedules only sheltered stops and says how much is covered', () => {
     const res = plan(fixture(), request({ rain: true, occasion: 'catchup', budgetInr: 0 }), THU_10AM);
     const places = new Map(fixture().places.map((p) => [p.id, p]));

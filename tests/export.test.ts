@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { planToGpx, planToKml, planToText } from '../src/core/export/files';
 import { googleMapsDirectionsUrl, MAX_WAYPOINTS } from '../src/core/export/googleMaps';
 import { haversineM, planGeometry } from '../src/core/geo';
-import { plan } from '../src/core/planner/plan';
+import { plan, rebuildPlan } from '../src/core/planner/plan';
 import { decodeShare, encodeShare } from '../src/core/share';
 import type { PlanRequest } from '../src/core/types';
-import { fixture, ist } from './helpers';
+import { fixture, ist, tinyDataset, twoWay } from './helpers';
 
 const ds = fixture();
 const req: PlanRequest = {
@@ -25,6 +25,16 @@ const p = result.plans[0];
 const route = planGeometry(ds, p);
 
 describe('planGeometry', () => {
+  it('uses the scheduled arrival when a curated route passes a stop twice', () => {
+    const repeated = tinyDataset(['S', 'P', 'Q'], [...twoWay('sp', 'S', 'P', 100), ...twoWay('pq', 'P', 'Q', 100)], [{ id: 'bench', nodeId: 'P' }]);
+    repeated.curatedWalks = [{
+      id: 'repeat', name: 'Stop on the return', startNodeId: 'S', edgeIds: ['sp:f', 'pq:f', 'pq:r', 'sp:r'],
+      stops: [{ placeId: 'bench', afterEdge: 3 }], tags: [], verifiedAt: '2026-09-20',
+    }];
+    const [selected] = rebuildPlan(repeated, { ...req, startId: 'start', requiredPlaceIds: [], requireCafe: false }, now, 'c:repeat').plans;
+    expect(selected.visits[0].afterEdge).toBe(3);
+    expect(planGeometry(repeated, selected).stops[0].pathIndex).toBe(3);
+  });
   it('rebuilds a continuous path that starts and ends at the start', () => {
     expect(route.path[0]).toEqual(route.start);
     expect(route.path[route.path.length - 1]).toEqual(route.start);
@@ -100,6 +110,52 @@ describe('file exports', () => {
 });
 
 describe('share links', () => {
+  it.each([
+    ['r', 'p_tower,p_bench,p_pond'],
+    ['t', '29'], ['t', '91'], ['f', '31'], ['dw', 'p_tower~121'],
+  ])('rejects unsupported planner limits instead of truncating or adapting %s=%s', (key, value) => {
+    const params = new URLSearchParams(encodeShare({ datasetVersion: ds.datasetVersion, request: req, planId: p.id }).slice(1));
+    params.set(key, value);
+    expect(decodeShare(`#${params}`).ok).toBe(false);
+  });
+
+  it.each([30, 90])('preserves supported planner limits at %s minutes', (durationMin) => {
+    const shared = {
+      datasetVersion: ds.datasetVersion, planId: p.id,
+      request: { ...req, durationMin, bufferMin: 30, requiredPlaceIds: ['p_tower', 'p_bench'], dwellOverridesMin: { p_tower: 120, p_bench: 0 } },
+    };
+    expect(decodeShare(encodeShare(shared))).toEqual({ ok: true, shared });
+  });
+
+  it('round-trips a preview time as the same timezone-independent instant', () => {
+    const shared = { datasetVersion: ds.datasetVersion, request: req, planId: p.id, at: now.toISOString() };
+    expect(decodeShare(encodeShare(shared))).toEqual({ ok: true, shared });
+  });
+
+  it('keeps a prototype-named dwell override as ordinary data', () => {
+    const hash = encodeShare({ datasetVersion: ds.datasetVersion, request: req, planId: p.id }) + '&dw=__proto__~7';
+    const decoded = decodeShare(hash);
+    expect(decoded.ok).toBe(true);
+    if (decoded.ok) {
+      expect(Object.hasOwn(decoded.shared.request.dwellOverridesMin!, '__proto__')).toBe(true);
+      expect(decoded.shared.request.dwellOverridesMin!['__proto__']).toBe(7);
+    }
+  });
+
+  it.each([
+    '&b=', '&b=%20', '&b=0x10', '&b=1e2', '&a=true', '&w=2', '&c=', '&dw=p_tower~',
+    '&dw=p_tower~7~8', '&dw=p_tower~7,p_tower~8', '&r=p_tower,p_tower',
+    '&at=2026-10-01T10:00:00', '&at=2026-02-30T10:00:00Z', '&at=October+1,+2026',
+  ])('rejects ambiguous or malformed share values (%s)', (extra) => {
+    const params = new URLSearchParams(encodeShare({ datasetVersion: ds.datasetVersion, request: req, planId: p.id }).slice(1));
+    const update = new URLSearchParams(extra.slice(1));
+    for (const [key, value] of update) params.set(key, value);
+    expect(decodeShare(`#${params}`).ok).toBe(false);
+  });
+
+  it('rejects repeated fields instead of choosing one silently', () => {
+    expect(decodeShare(encodeShare({ datasetVersion: ds.datasetVersion, request: req, planId: p.id }) + '&a=1&a=0').ok).toBe(false);
+  });
   it('round-trips a request and plan id', () => {
     const shared = { datasetVersion: ds.datasetVersion, request: { ...req, backBy: '17:30', dwellOverridesMin: { p_tower: 7 } }, planId: p.id };
     const decoded = decodeShare(encodeShare(shared));

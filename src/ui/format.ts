@@ -15,8 +15,9 @@ export function istInputValue(date: Date): string {
 }
 
 export function fromIstInput(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null
   const d = new Date(`${value}:00+05:30`)
-  return Number.isNaN(d.getTime()) ? null : d
+  return Number.isNaN(d.getTime()) || istInputValue(d) !== value ? null : d
 }
 
 export function download(filename: string, mime: string, content: string) {

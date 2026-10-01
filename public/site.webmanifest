@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Campus Loops",
+  "short_name": "Campus Loops",
+  "description": "Walks around MIT Manipal that fit your time, budget and occasion. Public demo.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7f4",
+  "theme_color": "#0d7a55",
+  "lang": "en-IN",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

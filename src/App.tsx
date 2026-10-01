@@ -1,18 +1,19 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { calibrationSummaryText } from './ui/calibration'
 import { DatasetError, loadDataset } from './core/dataset/load'
-import { OCCASIONS } from './core/planner/occasions'
 import { plan, rebuildPlan } from './core/planner/plan'
 import { decodeShare, encodeShare } from './core/share'
 import { toIst } from './core/time/clock'
-import type { Dataset, PlanRequest, PlanResult } from './core/types'
+import type { Dataset, PlanResult } from './core/types'
 import { clearLogs, exportLogsJson, listLogs } from './storage/calibrationLog'
+import { listSavedPlans, removeSavedPlan, savePlan } from './storage/savedPlans'
 import { Backdrop } from './ui/Backdrop'
 import { ripple } from './ui/effects'
 import { download, fromIstInput, istInputValue } from './ui/format'
 import { PlanCard } from './ui/PlanCard'
-import { PlanForm, type FormState } from './ui/PlanForm'
+import { PlanForm } from './ui/PlanForm'
 import { RouteMap } from './ui/RouteMap'
+import { initialForm, sharedForm, toRequest, type FormState } from './ui/planningState'
 
 const DATASETS = {
   demo: () => import('./data/manipal-demo.json'),
@@ -24,34 +25,6 @@ const REASON: Record<string, string> = {
   backBy: 'your back-by time',
   sunset: 'sunset',
   window: 'end of pilot hours',
-}
-
-function initialForm(dataset: Dataset): FormState {
-  return {
-    startId: dataset.starts[0]?.id ?? '',
-    occasion: 'friends',
-    ...OCCASIONS.friends.defaults,
-    required: ['', ''],
-    avoidSteps: false,
-    rain: false,
-    backBy: '',
-    previewAt: '',
-  }
-}
-
-function toRequest(f: FormState): PlanRequest {
-  return {
-    startId: f.startId,
-    occasion: f.occasion,
-    durationMin: f.durationMin,
-    budgetInr: f.budgetInr,
-    requiredPlaceIds: f.required.filter(Boolean),
-    requireCafe: f.requireCafe,
-    pace: f.pace,
-    avoidSteps: f.avoidSteps,
-    rain: f.rain,
-    ...(f.backBy ? { backBy: f.backBy } : {}),
-  }
 }
 
 function useMediaQuery(query: string): boolean {
@@ -78,76 +51,96 @@ export default function App() {
   const [dataset, setDataset] = useState<Dataset | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [form, setForm] = useState<FormState | null>(null)
-  const [shared, setShared] = useState<{ planId: string; note: string | null } | null>(null)
+  const [shared, setShared] = useState<{ planId: string; note: string | null; blocked?: boolean } | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [view, setView] = useState<'list' | 'map'>('list')
   const [toast, setToast] = useState<string | null>(null)
   const [logCount, setLogCount] = useState(() => listLogs().length)
+  const [savedPlans, setSavedPlans] = useState(listSavedPlans)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const realNow = useNow(30_000)
   // One map instance only: in the side pane on wide screens, behind the Map tab on phones.
   const wide = useMediaQuery('(min-width: 960px)')
 
+  const applyLink = useCallback((ds: Dataset, hash: string) => {
+    const decoded = decodeShare(hash)
+    setSelectedId(null)
+    setHoveredId(null)
+    setView('list')
+    if (decoded.ok) {
+      if (decoded.shared.datasetVersion !== ds.datasetVersion) {
+        setShared({ planId: '', blocked: true, note: 'This walk uses a different version of the campus data. Its route needs updating before you use it.' })
+        setForm(initialForm(ds))
+      } else {
+        setForm(sharedForm(ds, decoded.shared))
+        setShared({ planId: decoded.shared.planId, note: null })
+        setSelectedId(decoded.shared.planId)
+      }
+    } else {
+      setForm(initialForm(ds))
+      setShared(decoded.reason === 'empty' ? null : { planId: '', note: `${decoded.reason} Showing fresh plans instead.` })
+    }
+  }, [])
+
   // ---- Load the dataset, then apply a shared link if there is one ----
   useEffect(() => {
+    let cancelled = false
     const which = new URLSearchParams(window.location.search).get('data') === 'fixture' ? 'fixture' : 'demo'
     DATASETS[which]()
       .then((mod) => {
         const { dataset: ds } = loadDataset(mod.default)
-        let f = initialForm(ds)
-        const decoded = decodeShare(window.location.hash)
-        if (decoded.ok) {
-          const s = decoded.shared
-          if (s.datasetVersion !== ds.datasetVersion) {
-            setShared({ planId: '', note: 'This shared link was made with an older version of the map data, so its route may have changed. Here are fresh plans instead.' })
-          } else {
-            const r = s.request
-            f = {
-              ...f,
-              startId: r.startId,
-              occasion: r.occasion,
-              durationMin: r.durationMin,
-              budgetInr: r.budgetInr,
-              pace: r.pace,
-              requireCafe: r.requireCafe,
-              avoidSteps: r.avoidSteps,
-              rain: r.rain,
-              backBy: r.backBy ?? '',
-              required: [r.requiredPlaceIds[0] ?? '', r.requiredPlaceIds[1] ?? ''],
-              previewAt: s.at ? istInputValue(new Date(s.at)) : '',
-            }
-            setShared({ planId: s.planId, note: null })
-            setSelectedId(s.planId)
-          }
-        } else if (window.location.hash.length > 1 && decoded.reason !== 'empty') {
-          setShared({ planId: '', note: `${decoded.reason} Showing fresh plans instead.` })
-        }
+        if (cancelled) return
         setDataset(ds)
-        setForm(f)
+        applyLink(ds, window.location.hash)
       })
-      .catch((err) => setLoadError(err instanceof DatasetError ? err.message : 'The map data failed to load. Check your connection and reload.'))
+      .catch((err) => !cancelled && setLoadError(err instanceof DatasetError ? err.message : 'The map data failed to load. Check your connection and reload.'))
+    return () => { cancelled = true }
+  }, [applyLink])
+
+  useEffect(() => {
+    if (!dataset) return
+    const onHash = () => applyLink(dataset, window.location.hash)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [dataset, applyLink])
+
+  useEffect(() => {
+    const refresh = () => { setSavedPlans(listSavedPlans()); setLogCount(listLogs().length) }
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+    }
   }, [])
 
   const notify = useCallback((message: string) => {
     setToast(message)
-    window.setTimeout(() => setToast((t) => (t === message ? null : t)), 2200)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3500)
   }, [])
 
   const update = useCallback((patch: Partial<FormState>) => {
     setForm((f) => (f ? { ...f, ...patch } : f))
-    setShared((s) => (s?.planId ? null : s)) // editing leaves shared-link mode
+    setShared(null) // editing leaves shared-link mode
   }, [])
 
   // ---- Plan (deferred so typing stays smooth) ----
   const deferredForm = useDeferredValue(form)
   // Stable unless the preview time or the 30-second clock changes, so hovering doesn't re-plan.
   const previewAt = deferredForm?.previewAt ?? ''
-  const now = useMemo(() => (previewAt ? fromIstInput(previewAt) ?? realNow : realNow), [previewAt, realNow])
+  const previewNow = useMemo(() => previewAt ? fromIstInput(previewAt) : null, [previewAt])
+  const now = previewNow ?? realNow
   const durationError =
     form && !(form.durationMin >= 30 && form.durationMin <= 90) ? 'Choose between 30 and 90 minutes.' : null
+  const budgetError = form && !(Number.isFinite(form.budgetInr) && form.budgetInr >= 0 && form.budgetInr <= 100000)
+    ? 'Choose a budget between ₹0 and ₹100,000.' : null
+  const previewError = form?.previewAt && !fromIstInput(form.previewAt) ? 'Choose a valid date and time.' : null
 
   const result: PlanResult | null = useMemo(() => {
     if (!dataset || !deferredForm || !(deferredForm.durationMin >= 30 && deferredForm.durationMin <= 90)) return null
+    if (!Number.isFinite(deferredForm.budgetInr) || deferredForm.budgetInr < 0 || deferredForm.budgetInr > 100000 || (deferredForm.previewAt && !fromIstInput(deferredForm.previewAt))) return null
+    if (shared?.blocked) return null
     const request = toRequest(deferredForm)
     return shared?.planId ? rebuildPlan(dataset, request, now, shared.planId) : plan(dataset, request, now)
     // `now` changes every 30 s; planning is fast enough to simply re-run.
@@ -158,18 +151,19 @@ export default function App() {
   const selected = plans.find((p) => p.id === selectedId) ?? plans[0] ?? null
 
   // Keep the address bar as a shareable link to the selected plan.
-  const shareHash = dataset && form && selected
+  const shareHash = dataset && deferredForm && selected
     ? encodeShare({
         datasetVersion: dataset.datasetVersion,
-        request: toRequest(form),
+        request: toRequest(deferredForm),
         planId: selected.id,
-        ...(form.previewAt ? { at: (fromIstInput(form.previewAt) ?? realNow).toISOString() } : {}),
+        ...(deferredForm.previewAt ? { at: now.toISOString() } : {}),
       })
     : ''
   useEffect(() => {
     const url = `${window.location.pathname}${window.location.search}${shareHash}`
-    if (shareHash && window.location.hash !== shareHash) window.history.replaceState(null, '', url)
-  }, [shareHash])
+    if (!dataset || !form || shared || form !== deferredForm) return
+    if (window.location.hash !== shareHash) window.history.replaceState(null, '', url)
+  }, [shareHash, dataset, form, deferredForm, shared])
   const shareUrl = `${window.location.origin}${window.location.pathname}${window.location.search}${shareHash}`
 
   const startSec = result?.context ? toIst(now).secondOfDay : null
@@ -178,10 +172,29 @@ export default function App() {
     setHoveredId(null)
   }, [])
 
+  const saveCurrent = () => {
+    if (!selected || !shareHash) return
+    const status = savePlan({ hash: shareHash, name: selected.name, savedAt: new Date().toISOString() })
+    notify(status === 'saved' ? 'Walk saved on this device' : status === 'full' ? 'Saved walks are full. Remove one to make room.' : 'Storage is unavailable in this browser')
+    setSavedPlans(listSavedPlans())
+  }
+
+  const removeSaved = (hash: string) => {
+    const ok = removeSavedPlan(hash)
+    notify(ok ? 'Saved walk removed' : 'Storage is unavailable in this browser')
+    setSavedPlans(listSavedPlans())
+  }
+
+  const changeView = (next: 'list' | 'map') => {
+    setView(next)
+    document.getElementById(`view-${next}`)?.focus()
+  }
+
   if (loadError) {
     return (
       <main className="panel">
         <p className="notice danger" role="alert">{loadError}</p>
+        <button type="button" className="btn" onClick={() => window.location.reload()}>Reload campus data</button>
       </main>
     )
   }
@@ -203,6 +216,7 @@ export default function App() {
   return (
     <>
       <Backdrop />
+      <a className="skip-link" href="#outings" onClick={(e) => { e.preventDefault(); document.getElementById('outings')?.focus() }}>Skip to suggested walks</a>
       <div className="app">
         <main className="panel">
           <header className="brand">
@@ -213,29 +227,57 @@ export default function App() {
               </svg>
             </div>
             <div style={{ minWidth: 0 }}>
+              <p className="eyebrow">MIT Manipal · On foot</p>
               <h1>Campus Loops</h1>
-              <p>Walks around MIT Manipal that get you back in time.</p>
             </div>
           </header>
+          <div className="intro">
+            <p className="intro-title">A little time.<br />A good walk.</p>
+            <p>Pick your company, your budget, and the time you have. Find a way out—and back.</p>
+          </div>
           {isDemo && (
-            <p className="notice" role="note">
+            <details className="demo-note">
+              <summary>Public demo · Check before you go</summary>
               <span>
                 <b>Demo data.</b> Paths and places come from OpenStreetMap and haven't been walked or checked yet. Prices and some opening
                 hours are placeholders. Check before you go.
               </span>
-            </p>
+            </details>
           )}
 
-          <PlanForm dataset={dataset} state={form} onChange={update} durationError={durationError} />
+          {form.previewAt && !previewError && (
+            <div className="preview-notice" role="status">
+              <span><b>Previewing a future or past walk</b><small>{new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' }).format(fromIstInput(form.previewAt)!)} IST</small></span>
+              <button type="button" className="btn ghost" onClick={() => update({ previewAt: '' })}>Plan from now</button>
+            </div>
+          )}
 
-          <section aria-live="polite" aria-label="Suggested outings" style={{ display: 'grid', gap: 12 }}>
-            {shared?.note && <p className="notice">{shared.note}</p>}
+          <PlanForm dataset={dataset} state={form} onChange={update} durationError={durationError} budgetError={budgetError} previewError={previewError} />
+
+          {savedPlans.length > 0 && (
+            <details className="more saved-walks card">
+              <summary>Saved walks <span className="count">{savedPlans.length}</span></summary>
+              <p className="hint">Only on this device. Opening a saved walk checks it again. Preview walks keep their chosen date.</p>
+              <ul>
+                {savedPlans.map((s) => (
+                  <li key={s.hash}>
+                    <button type="button" className="saved-open" onClick={() => { window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${s.hash}`); applyLink(dataset, s.hash) }}>{s.name}</button>
+                    <button type="button" className="btn ghost" aria-label={`Remove saved walk: ${s.name}`} onClick={() => removeSaved(s.hash)}>Remove</button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          <section id="outings" tabIndex={-1} aria-label="Suggested outings" className="outings" aria-busy={form !== deferredForm}>
+            <div className="results-heading"><h2>Your way out</h2><span role="status">{plans.length ? `${plans.length} walk${plans.length === 1 ? '' : 's'} found` : 'Let’s find your walk'}</span></div>
+            {shared?.note && <div className="notice"><p>{shared.note}</p>{shared.blocked && <button type="button" className="btn" onClick={() => { setShared(null); setForm(initialForm(dataset)) }}>Plan again</button>}</div>}
             {shared?.planId && plans.length > 0 && <p className="notice"><span>Showing a shared plan, checked again just now.</span></p>}
 
             {result?.context && (
-              <p className="context">
+              <p className="context" aria-live="polite">
                 <span>Leaving <b>{result.context.nowIst}</b>{form.previewAt ? ' (preview)' : ''}</span>
-                <span>Back by <b>{result.context.deadlineIst}</b> · {REASON[result.context.deadlineReason]}</span>
+                {result.context.availableSec > 0 && <span>Back by <b>{result.context.deadlineIst}</b> · {REASON[result.context.deadlineReason]}</span>}
                 <span>Sunset {result.context.sunsetIst}</span>
               </p>
             )}
@@ -263,13 +305,14 @@ export default function App() {
 
             {plans.length > 0 && (
               <div className="view-switch" role="tablist" aria-label="View">
-                <button type="button" role="tab" aria-selected={view === 'list'} onClick={() => setView('list')}>List</button>
-                <button type="button" role="tab" aria-selected={view === 'map'} onClick={() => setView('map')}>Map</button>
+                {(['list', 'map'] as const).map((v) => <button key={v} id={`view-${v}`} type="button" role="tab" aria-controls={`${v}-view`} tabIndex={view === v ? 0 : -1} aria-selected={view === v} onClick={() => setView(v)} onKeyDown={(e) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); changeView(e.key === 'Home' ? 'list' : e.key === 'End' ? 'map' : view === 'list' ? 'map' : 'list') } }}>{v === 'list' ? 'Itineraries' : 'Map'}</button>)}
               </div>
             )}
-            {!wide && view === 'map' && plans.length > 0 && <div className="map-inline">{map}</div>}
+            {!wide && <div id="map-view" role="tabpanel" aria-labelledby="view-map" hidden={view !== 'map' || plans.length === 0}>
+              {view === 'map' && plans.length > 0 && <><p className="map-caption">{selected?.name} · Switch to Itineraries to choose another walk.</p><div className="map-inline">{map}</div></>}
+            </div>}
 
-            <div className="plans">
+            <div className="plans" id="list-view" role={wide ? undefined : 'tabpanel'} aria-labelledby={wide ? undefined : 'view-list'} hidden={!wide && view !== 'list' && plans.length > 0}>
               {plans.map((p, i) => (
                 <PlanCard
                   key={p.id}
@@ -278,12 +321,14 @@ export default function App() {
                   dataset={dataset}
                   selected={p.id === selected?.id}
                   startSec={startSec ?? 0}
-                  pace={form.pace}
+                  pace={deferredForm?.pace ?? form.pace}
                   shareUrl={shareUrl}
                   onSelect={() => onSelect(p.id)}
                   onHover={(h) => setHoveredId(h && p.id !== selected?.id ? p.id : null)}
                   notify={notify}
                   onLogged={() => setLogCount(listLogs().length)}
+                  onSave={saveCurrent}
+                  saved={savedPlans.some((s) => s.hash === shareHash) && p.id === selected?.id}
                 />
               ))}
             </div>
@@ -292,8 +337,8 @@ export default function App() {
           <footer className="foot">
             <p>{dataset.licence}</p>
             <p>
-              Map tiles © OpenStreetMap contributors. The tile server sees your IP address and the map area you view. Shared links contain the
-              start point, route and preferences, so they aren't private. Nothing else leaves your device.
+              Map attribution is shown on the map. The tile provider sees your IP address and the map area you view. Shared links contain the
+              start point, route and preferences. Saved walks and calibration logs stay on this device. No accounts or analytics.
             </p>
             <details className="more calib">
               <summary>Calibration log ({logCount})</summary>
@@ -302,16 +347,17 @@ export default function App() {
                 <button type="button" className="btn" onPointerDown={ripple} onClick={() => download('campus-loops-walks.json', 'application/json', exportLogsJson())}>
                   Export JSON
                 </button>
-                <button type="button" className="btn ghost" onPointerDown={ripple} onClick={() => { clearLogs(); setLogCount(0); notify('Calibration log cleared') }}>
+                <button type="button" className="btn ghost" onPointerDown={ripple} onClick={() => { const ok = clearLogs(); setLogCount(listLogs().length); notify(ok ? 'Calibration log cleared' : 'Storage is unavailable in this browser') }}>
                   Clear
                 </button>
                 <button type="button" className="btn ghost" onPointerDown={ripple} onClick={() => setLogCount(listLogs().length)}>Refresh</button>
               </div>
             </details>
             <p>Data version {dataset.datasetVersion}. Daylight outings only. Times are India Standard Time.</p>
+            <p><a href="https://github.com/Deftsalt-debug/campus-loops/issues" target="_blank" rel="noopener noreferrer">Report a path, price, or app issue</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Map data licence</a></p>
           </footer>
         </main>
-        {wide && <aside className="map-pane" aria-label="Map">{map}</aside>}
+        {wide && <aside className="map-pane" aria-label="Map"><div className="map-heading"><span className="eyebrow">Explore the neighbourhood</span><b>{selected?.name ?? 'Your walk starts here'}</b><span>Start and finish together. Numbered pins follow your itinerary.</span></div><div className="map-frame">{map}</div></aside>}
       </div>
       {toast && <div className="toast" role="status">{toast}</div>}
     </>

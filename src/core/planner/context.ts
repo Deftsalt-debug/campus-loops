@@ -16,6 +16,8 @@ export interface ScheduledVisit {
   place: Place;
   arriveSec: number;
   dwellSec: number;
+  /** Number of walk edges completed at arrival; distinguishes repeated nodes. */
+  afterEdge: number;
 }
 
 /** A feasible candidate outing, generated or curated, before ranking. */

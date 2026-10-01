@@ -34,9 +34,14 @@ describe('validateDataset', () => {
     ['verified hours without windows', (ds) => (ds.places[0].verifiedOpenWindows = []), 'HOURS'],
     ['a window ending before it starts', (ds) => (ds.places[0].verifiedOpenWindows[0].end = '07:00'), 'HOURS'],
     ['a bad date', (ds) => (ds.edges[0].verifiedAt = 'last week'), 'BAD_DATE'],
+    ['an impossible date', (ds) => (ds.edges[0].verifiedAt = '2026-02-30'), 'BAD_DATE'],
+    ['invalid route coordinates', (ds) => ds.edges[0].geometry.splice(1, 0, [91, 74]), 'GEOMETRY'],
+    ['an invalid daylight reference', (ds) => (ds.location.lat = NaN), 'BAD_NUMBER'],
     ['a curated walk that skips an edge', (ds) => ds.curatedWalks[0].edgeIds.splice(2, 1), 'WALK_CONTINUITY'],
     ['a curated stop off the route', (ds) => (ds.curatedWalks[1].stops[0].afterEdge = 2), 'WALK_STOP'],
     ['a curated walk on a restricted edge', (ds) => (ds.edges.find((e) => e.id === 's_g4:f')!.allowed = false), 'WALK_DISALLOWED'],
+    ['an empty curated walk', (ds) => (ds.curatedWalks[0].edgeIds = []), 'WALK_CONTINUITY'],
+    ['a duplicated curated stop', (ds) => ds.curatedWalks[1].stops.push({ ...ds.curatedWalks[1].stops[0] }), 'WALK_STOP'],
     ['a non-IST timezone', (ds) => ((ds as { timezone: string }).timezone = 'UTC'), 'TIMEZONE'],
   ])('flags %s', (_label, mutate, code) => {
     const ds = fixture();
@@ -53,6 +58,22 @@ describe('validateDataset', () => {
 });
 
 describe('loadDataset', () => {
+  it.each<[string, (ds: Dataset) => void]>([
+    ['null node', (ds) => (ds.nodes as unknown[]).push(null)],
+    ['nonboolean access flag', (ds) => ((ds.edges[0] as unknown as Record<string, unknown>).allowed = 'false')],
+    ['missing location', (ds) => ((ds as unknown as Record<string, unknown>).location = null)],
+    ['missing place tags', (ds) => ((ds.places[0] as unknown as Record<string, unknown>).tags = null)],
+    ['missing windows', (ds) => ((ds.places[0] as unknown as Record<string, unknown>).verifiedOpenWindows = null)],
+    ['null window', (ds) => (ds.places[0].verifiedOpenWindows as unknown[]).push(null)],
+    ['malformed geometry point', (ds) => (ds.edges[0].geometry as unknown[]).push([13])],
+    ['unknown hours status', (ds) => ((ds.places[0] as unknown as Record<string, unknown>).hoursStatus = 'open')],
+    ['invalid fixture flag', (ds) => ((ds as unknown as Record<string, unknown>).isFixture = 'false')],
+  ])('reports a DatasetError for %s rather than crashing during validation', (_label, mutate) => {
+    const ds = fixture();
+    mutate(ds);
+    expect(() => loadDataset(ds)).toThrow(DatasetError);
+    expect(validateDataset(ds).some((issue) => issue.code === 'SHAPE')).toBe(true);
+  });
   it('returns typed data and warnings for a valid dataset', () => {
     const { dataset, issues } = loadDataset(fixture());
     expect(dataset.datasetVersion).toBe('fixture-1');

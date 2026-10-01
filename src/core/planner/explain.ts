@@ -181,6 +181,7 @@ export function toPlan(
       name: v.place.name,
       category: v.place.category,
       arriveOffsetSec: v.arriveSec,
+      afterEdge: v.afterEdge,
       dwellSec: v.dwellSec,
       spendLowInr: v.place.spendLowInr ?? 0,
       spendHighInr: v.place.spendHighInr ?? 0,

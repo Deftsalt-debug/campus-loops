@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitsOpenWindow, formatMinutes, isHHMM, parseHHMM, toIst } from '../src/core/time/clock';
+import { fitsOpenWindow, formatMinutes, isCalendarDate, isHHMM, isIsoInstant, parseHHMM, toIst } from '../src/core/time/clock';
 import { sunTimes } from '../src/core/time/sun';
 
 const MANIPAL = { lat: 13.3525, lng: 74.7928 };
@@ -40,6 +40,15 @@ describe('sunTimes', () => {
 });
 
 describe('IST clock', () => {
+  it('validates real Gregorian dates and explicit timezone timestamps', () => {
+    expect(isCalendarDate('2024-02-29')).toBe(true);
+    expect(isCalendarDate('2026-02-29')).toBe(false);
+    expect(isCalendarDate('2026-04-31')).toBe(false);
+    expect(isIsoInstant('2026-10-01T10:00:00+05:30')).toBe(true);
+    expect(isIsoInstant('2026-10-01T04:30:00.000Z')).toBe(true);
+    expect(isIsoInstant('2026-10-01T10:00:00')).toBe(false);
+    expect(isIsoInstant('2026-02-30T10:00:00Z')).toBe(false);
+  });
   it('converts across UTC midnight', () => {
     // 20:00 UTC on Wednesday 30 Sep is 01:30 IST on Thursday 1 Oct.
     const t = toIst(new Date('2026-09-30T20:00:00Z'));

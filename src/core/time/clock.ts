@@ -31,6 +31,19 @@ export function isHHMM(value: string): boolean {
   return HHMM.test(value);
 }
 
+/** Reject impossible calendar dates that Date.parse would silently normalize. */
+export function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+/** An ISO timestamp with an explicit timezone, portable between recipients. */
+export function isIsoInstant(value: string): boolean {
+  const match = /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
+  return Boolean(match && isCalendarDate(match[1]) && Number.isFinite(Date.parse(value)));
+}
+
 /** "18:30" -> 1110 minutes after midnight. Throws on malformed input. */
 export function parseHHMM(value: string): number {
   const m = HHMM.exec(value);

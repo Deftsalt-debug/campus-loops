@@ -1,5 +1,6 @@
 import { isOccasion } from './planner/occasions';
-import { isHHMM } from './time/clock';
+import { DEFAULT_CONFIG } from './planner/config';
+import { isHHMM, isIsoInstant } from './time/clock';
 import type { PlanRequest } from './types';
 
 // Shareable links keep everything in the URL fragment (#...), which browsers
@@ -9,6 +10,7 @@ import type { PlanRequest } from './types';
 export const SHARE_VERSION = '1';
 const MAX_LENGTH = 2000;
 const ID = /^[A-Za-z0-9_.:-]{1,120}$/;
+const DECIMAL = /^\d+(?:\.\d+)?$/;
 
 export interface SharedPlan {
   datasetVersion: string;
@@ -53,6 +55,11 @@ export function decodeShare(hash: string): DecodeResult {
   if (p.get('v') !== SHARE_VERSION) return { ok: false, reason: 'This link was made by a different version of Campus Loops.' };
 
   const bad = (what: string): DecodeResult => ({ ok: false, reason: `This link has an invalid ${what}.` });
+  const keys = [...p.keys()];
+  if (new Set(keys).size !== keys.length) return bad('repeated field');
+  for (const key of ['c', 'a', 'w']) {
+    if (p.has(key) && p.get(key) !== '1' && p.get(key) !== '0') return bad('preference');
+  }
   const d = p.get('d') ?? '';
   const s = p.get('s') ?? '';
   const id = p.get('id') ?? '';
@@ -64,28 +71,32 @@ export function decodeShare(hash: string): DecodeResult {
   const pace = p.get('p');
   if (pace !== 'relaxed' && pace !== 'normal') return bad('pace');
   const num = (key: string, min: number, max: number) => {
-    const v = Number(p.get(key));
-    return p.has(key) && Number.isFinite(v) && v >= min && v <= max ? v : null;
+    const raw = p.get(key);
+    const v = Number(raw);
+    return raw !== null && DECIMAL.test(raw) && Number.isFinite(v) && v >= min && v <= max ? v : null;
   };
-  const durationMin = num('t', 1, 600);
+  const durationMin = num('t', DEFAULT_CONFIG.minDurationMin, DEFAULT_CONFIG.maxDurationMin);
   const budgetInr = num('b', 0, 100_000);
   if (durationMin === null) return bad('duration');
   if (budgetInr === null) return bad('budget');
   const required = p.get('r') ? p.get('r')!.split(',') : [];
-  if (required.length > 5 || required.some((x) => !ID.test(x))) return bad('stop list');
+  if (required.length > DEFAULT_CONFIG.maxRequired || required.some((x) => !ID.test(x)) || new Set(required).size !== required.length) return bad('stop list');
   const backBy = p.get('k') ?? undefined;
   if (backBy !== undefined && !isHHMM(backBy)) return bad('back-by time');
-  const bufferMin = p.has('f') ? num('f', 0, 60) : undefined;
+  const bufferMin = p.has('f') ? num('f', 0, 30) : undefined;
   if (bufferMin === null) return bad('buffer');
-  const dwellOverridesMin: Record<string, number> = {};
+  const dwellOverridesMin: Record<string, number> = Object.create(null);
   for (const pair of p.get('dw')?.split(',') ?? []) {
-    const [pid, m] = pair.split('~');
+    const parts = pair.split('~');
+    const [pid, m] = parts;
     const minutes = Number(m);
-    if (!ID.test(pid ?? '') || !Number.isFinite(minutes) || minutes < 0 || minutes > 600) return bad('stop time');
+    if (parts.length !== 2 || !ID.test(pid ?? '') || !DECIMAL.test(m ?? '') || !Number.isFinite(minutes) || minutes < 0 || minutes > DEFAULT_CONFIG.maxDwellMin || Object.hasOwn(dwellOverridesMin, pid)) {
+      return bad('stop time');
+    }
     dwellOverridesMin[pid] = minutes;
   }
   const at = p.get('at') ?? undefined;
-  if (at !== undefined && Number.isNaN(Date.parse(at))) return bad('planning time');
+  if (at !== undefined && !isIsoInstant(at)) return bad('planning time');
 
   return {
     ok: true,

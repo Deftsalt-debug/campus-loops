@@ -30,11 +30,12 @@ function median(values: number[]): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = sorted.length >> 1;
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return sorted.length % 2 ? sorted[mid] : sorted[mid - 1] / 2 + sorted[mid] / 2;
 }
 
 const usable = (predicted: number | undefined, actual: number | undefined): actual is number =>
-  typeof predicted === 'number' && predicted > 0 && typeof actual === 'number' && Number.isFinite(actual) && actual >= 0;
+  typeof predicted === 'number' && Number.isFinite(predicted) && predicted > 0 &&
+  typeof actual === 'number' && Number.isFinite(actual) && actual >= 0 && Number.isFinite(actual / predicted);
 
 export function summarise(logs: WalkLog[], pace?: Pace): CalibrationSummary {
   const relevant = pace ? logs.filter((l) => l.pace === pace) : logs;
@@ -54,5 +55,8 @@ export function summarise(logs: WalkLog[], pace?: Pace): CalibrationSummary {
 
 /** Pace that would have made the median walk exact. A suggestion to review, never applied automatically. */
 export function suggestedPaceMps(currentPaceMps: number, summary: CalibrationSummary): number | null {
-  return summary.medianWalkRatio ? currentPaceMps / summary.medianWalkRatio : null;
+  const ratio = summary.medianWalkRatio;
+  if (!Number.isFinite(currentPaceMps) || currentPaceMps <= 0 || ratio === null || !Number.isFinite(ratio) || ratio <= 0) return null;
+  const suggested = currentPaceMps / ratio;
+  return Number.isFinite(suggested) && suggested > 0 ? suggested : null;
 }

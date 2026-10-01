@@ -106,7 +106,7 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
         rejections.hours++;
         continue;
       }
-      visits.push({ place, arriveSec, dwellSec });
+      visits.push({ place, arriveSec, dwellSec, afterEdge: legs.reduce((sum, l) => sum + l.edges.length, 0) + leg.edges.length });
       legs.push(leg);
       visit(place.nodeId, departSec, spendLow + low, spendHigh + high);
       visits.pop();

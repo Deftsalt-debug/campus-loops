@@ -1,0 +1,40 @@
+import { describe, expect, it } from 'vitest'
+import { DEFAULT_TILE_URL, mapTileConfiguration } from '../src/ui/mapTiles'
+
+describe('public map tile configuration', () => {
+  it('keeps the linked OpenStreetMap credit with the default HTTPS XYZ server', () => {
+    const config = mapTileConfiguration({})
+    expect(config.ok).toBe(true)
+    if (!config.ok) return
+    expect(config.url).toBe(DEFAULT_TILE_URL)
+    expect(config.maxZoom).toBe(19)
+    expect(config.attribution).toContain('https://www.openstreetmap.org/copyright')
+  })
+
+  it('requires provider credit for custom templates and escapes it as text', () => {
+    const url = 'https://{s}.example.org/{z}/{x}/{y}.png'
+    expect(mapTileConfiguration({ VITE_MAP_TILE_URL: url }).ok).toBe(false)
+    const config = mapTileConfiguration({ VITE_MAP_TILE_URL: url, VITE_MAP_TILE_ATTRIBUTION: 'Example <img onerror="x">', VITE_MAP_TILE_MAX_ZOOM: '17' })
+    expect(config.ok).toBe(true)
+    if (!config.ok) return
+    expect(config.maxZoom).toBe(17)
+    expect(config.attribution).toContain('Example &#60;img')
+    expect(config.attribution).not.toContain('<img')
+  })
+
+  it('supports same-origin tiles', () => {
+    expect(mapTileConfiguration({ VITE_MAP_TILE_URL: '/tiles/{z}/{x}/{y}.png', VITE_MAP_TILE_ATTRIBUTION: 'Local maps' }).ok).toBe(true)
+  })
+
+  it.each(['http://example.org/{z}/{x}/{y}', 'javascript:alert(1)/{z}/{x}/{y}', '//example.org/{z}/{x}/{y}', '/\\example.org/{z}/{x}/{y}', 'https://user:password@example.org/{z}/{x}/{y}', 'tiles/{z}/{x}/{y}', 'https://example.org/tiles#{z}/{x}/{y}'])('rejects unsafe or ambiguous URLs: %s', (url) => {
+    expect(mapTileConfiguration({ VITE_MAP_TILE_URL: url, VITE_MAP_TILE_ATTRIBUTION: 'Example maps' }).ok).toBe(false)
+  })
+
+  it('rejects a template missing a coordinate', () => {
+    expect(mapTileConfiguration({ VITE_MAP_TILE_URL: 'https://example.org/{z}/{x}', VITE_MAP_TILE_ATTRIBUTION: 'Example maps' }).ok).toBe(false)
+  })
+
+  it.each(['0', '23', 'NaN', 'Infinity', '18.5', '-1'])('rejects invalid zoom limits: %s', (zoom) => {
+    expect(mapTileConfiguration({ VITE_MAP_TILE_MAX_ZOOM: zoom }).ok).toBe(false)
+  })
+})

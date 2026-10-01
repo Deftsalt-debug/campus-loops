@@ -138,6 +138,8 @@ export interface Visit {
   name: string;
   category: PlaceCategory;
   arriveOffsetSec: number;
+  /** Number of walk edges completed at arrival. Optional for older saved plans. */
+  afterEdge?: number;
   dwellSec: number;
   spendLowInr: number;
   spendHighInr: number;

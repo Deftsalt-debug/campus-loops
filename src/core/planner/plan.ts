@@ -58,6 +58,7 @@ function run(
     context,
   });
 
+  if (!Number.isFinite(now.getTime())) return fail({ code: 'INVALID_INPUT', message: 'Choose a valid planning time.' });
   const inputError = validateRequest(dataset, request, config);
   if (inputError) return fail({ code: 'INVALID_INPUT', message: inputError });
 
@@ -139,7 +140,7 @@ function run(
     requireCafe: request.requireCafe,
     avoidSteps: request.avoidSteps,
     maxStops,
-    dwellSec: (p: Place) => (overrides[p.id] ?? p.dwellDefaultMin) * 60,
+    dwellSec: (p: Place) => (Object.hasOwn(overrides, p.id) ? overrides[p.id] : p.dwellDefaultMin) * 60,
   });
 
   for (const p of required) {
@@ -196,6 +197,7 @@ function findItineraries(
 ): Itinerary[] {
   const candidates = selectCandidates(dataset.places, ctx, {
     budgetInr: limits.budgetInr,
+    availableSec: limits.availableSec,
     rain: request.rain,
     occasion: request.occasion,
     maxCandidates: config.maxCandidates,

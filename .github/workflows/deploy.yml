@@ -8,36 +8,48 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  # Pull requests must not cancel a release build from main.
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Build-time public values. Leave unset to use the small-demo OSM default.
+    env:
+      VITE_MAP_TILE_URL: ${{ vars.VITE_MAP_TILE_URL }}
+      VITE_MAP_TILE_ATTRIBUTION: ${{ vars.VITE_MAP_TILE_ATTRIBUTION }}
+      VITE_MAP_TILE_MAX_ZOOM: ${{ vars.VITE_MAP_TILE_MAX_ZOOM }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm audit --audit-level=high
       # Lint, typecheck, every test, production build.
       - run: npm run verify
       # The demo data must still pass structural checks (it is expected to fail --production).
       - run: npm run data:check -- src/data/manipal-demo.json
       - uses: actions/upload-pages-artifact@v3
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: dist
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

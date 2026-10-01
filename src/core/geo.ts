@@ -5,7 +5,7 @@ export function haversineM([lat1, lng1]: LatLng, [lat2, lng2]: LatLng): number {
   const a =
     Math.sin(toRad(lat2 - lat1) / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(toRad(lng2 - lng1) / 2) ** 2;
-  return 2 * 6_371_000 * Math.asin(Math.sqrt(a));
+  return 2 * 6_371_000 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, a))));
 }
 
 export interface RouteGeometry {
@@ -35,13 +35,17 @@ export function planGeometry(dataset: Dataset, plan: Plan): RouteGeometry {
     nodeAt.push({ nodeId: edge.to, pathIndex: path.length - 1 });
   }
 
-  // Visits happen in walk order; find each stop's node at or after the previous stop.
+  // Use the scheduled arrival edge so a curated route can pass a node before
+  // stopping there. Older plans without this field fall back to walk order.
   let cursor = 0;
   const stops = plan.visits.map((v) => {
     const place = places.get(v.placeId)!;
-    const hit = nodeAt.findIndex((n, k) => k >= cursor && n.nodeId === place.nodeId);
-    const k = hit === -1 ? nodeAt.findIndex((n) => n.nodeId === place.nodeId) : hit;
-    cursor = Math.max(cursor, k);
+    if (!place) throw new Error(`Plan visits unknown place ${v.placeId}`);
+    const k = v.afterEdge ?? nodeAt.findIndex((n, index) => index >= cursor && n.nodeId === place.nodeId);
+    if (!Number.isInteger(k) || k < cursor || nodeAt[k]?.nodeId !== place.nodeId) {
+      throw new Error(`Plan stop ${v.placeId} is not on the route at its scheduled arrival`);
+    }
+    cursor = k;
     const node = nodes.get(place.nodeId)!;
     return { placeId: v.placeId, name: v.name, at: [node.lat, node.lng] as LatLng, pathIndex: nodeAt[k].pathIndex, passBy: v.dwellSec === 0 };
   });

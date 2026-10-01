@@ -19,9 +19,11 @@ interface Props {
   onHover: (hovering: boolean) => void
   notify: (message: string) => void
   onLogged: () => void
+  onSave: () => void
+  saved: boolean
 }
 
-export function PlanCard({ plan, index, dataset, selected, startSec, pace, shareUrl, onSelect, onHover, notify, onLogged }: Props) {
+export function PlanCard({ plan, index, dataset, selected, startSec, pace, shareUrl, onSelect, onHover, notify, onLogged, onSave, saved }: Props) {
   const startName = dataset.starts.find((s) => s.nodeId === plan.startNodeId)?.name ?? 'Start'
   const headingId = `plan-${index}-title`
   const stopCount = plan.visits.filter((v) => v.dwellSec > 0).length
@@ -55,7 +57,7 @@ export function PlanCard({ plan, index, dataset, selected, startSec, pace, share
         </div>
       </div>
       {selected && (
-        <PlanDetails plan={plan} dataset={dataset} startName={startName} startSec={startSec} pace={pace} shareUrl={shareUrl} notify={notify} onLogged={onLogged} />
+        <PlanDetails key={plan.id} plan={plan} dataset={dataset} startName={startName} startSec={startSec} pace={pace} shareUrl={shareUrl} notify={notify} onLogged={onLogged} onSave={onSave} saved={saved} />
       )}
     </article>
   )
@@ -70,6 +72,8 @@ function PlanDetails({
   shareUrl,
   notify,
   onLogged,
+  onSave,
+  saved,
 }: {
   plan: Plan
   dataset: Dataset
@@ -79,11 +83,14 @@ function PlanDetails({
   shareUrl: string
   notify: (message: string) => void
   onLogged: () => void
+  onSave: () => void
+  saved: boolean
 }) {
   const route = planGeometry(dataset, plan)
   const google = googleMapsDirectionsUrl(route)
   const file = slug(plan.name)
   const [actualMin, setActualMin] = useState('')
+  const [copyFallback, setCopyFallback] = useState<'link' | 'text' | null>(null)
   let stopNumber = 0
 
   const share = async () => {
@@ -96,7 +103,10 @@ function PlanDetails({
       await navigator.clipboard.writeText(shareUrl)
       notify('Link copied')
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') notify("Couldn't share. Copy the address bar instead.")
+      if ((err as Error).name !== 'AbortError') {
+        setCopyFallback('link')
+        notify('Copy the link from the field below')
+      }
     }
   }
   const copyText = async () => {
@@ -104,7 +114,8 @@ function PlanDetails({
       await navigator.clipboard.writeText(planToText(plan, startName, startSec))
       notify('Itinerary copied')
     } catch {
-      notify("Couldn't copy on this browser")
+      setCopyFallback('text')
+      notify('Select and copy the itinerary below')
     }
   }
   const logWalk = () => {
@@ -155,7 +166,7 @@ function PlanDetails({
           <span className="dot"><i>S</i></span>
           <span>
             Back at <b>{startName}</b>
-            <small>{mins(plan.bufferSec)} buffer · data checked {plan.dataCheckedOn}</small>
+            <small>{mins(plan.bufferSec)} buffer · data {dataset.isFixture ? 'snapshot' : 'checked'} {plan.dataCheckedOn}</small>
           </span>
         </li>
       </ol>
@@ -171,8 +182,15 @@ function PlanDetails({
           Open in Google Maps
         </a>
         <button type="button" className="btn" onPointerDown={ripple} onClick={share}>Share</button>
+        <button type="button" className="btn" onPointerDown={ripple} onClick={onSave} disabled={saved}>{saved ? 'Saved on device' : 'Save walk'}</button>
         <button type="button" className="btn" onPointerDown={ripple} onClick={copyText}>Copy text</button>
       </div>
+      {copyFallback && <div className="copy-fallback">
+        <label htmlFor={`copy-${plan.id}`}>{copyFallback === 'link' ? 'Link to this walk' : 'Itinerary to copy'}</label>
+        <textarea id={`copy-${plan.id}`} className="input" readOnly rows={copyFallback === 'link' ? 3 : 8} value={copyFallback === 'link' ? shareUrl : planToText(plan, startName, startSec)} onFocus={(e) => e.currentTarget.select()} />
+        <p className="hint">Select the text and use your device’s Copy command.</p>
+        <button type="button" className="btn ghost" onClick={() => setCopyFallback(null)}>Close copy field</button>
+      </div>}
       <div className="actions">
         <button
           type="button"

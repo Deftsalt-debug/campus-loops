@@ -1,8 +1,9 @@
 import { buildGraph } from '../graph/buildGraph';
 import { trueSeconds } from '../graph/edgeCost';
 import { dijkstra } from '../routing/dijkstra';
-import { isHHMM, parseHHMM } from '../time/clock';
+import { isCalendarDate, isHHMM, parseHHMM } from '../time/clock';
 import type { Dataset, LatLng } from '../types';
+import { datasetShapeIssues } from './shape';
 
 export type IssueLevel = 'error' | 'warning';
 
@@ -17,7 +18,6 @@ export interface ValidateOptions {
   production?: boolean;
 }
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Geometry endpoints must sit within this distance of their nodes. */
 const ENDPOINT_TOLERANCE_M = 3;
 
@@ -37,7 +37,8 @@ const isNonNegative = (v: unknown) => typeof v === 'number' && Number.isFinite(v
  * to plan with; warnings are worth a look but don't block development.
  */
 export function validateDataset(data: Dataset, options: ValidateOptions = {}): Issue[] {
-  const issues: Issue[] = [];
+  const issues: Issue[] = datasetShapeIssues(data);
+  if (issues.length > 0) return issues;
   const error = (code: string, message: string) => issues.push({ level: 'error', code, message });
   const warn = (code: string, message: string) => issues.push({ level: 'warning', code, message });
 
@@ -50,6 +51,9 @@ export function validateDataset(data: Dataset, options: ValidateOptions = {}): I
   if (!data.datasetVersion) error('SHAPE', 'datasetVersion is missing.');
   if (data.timezone !== 'Asia/Kolkata') error('TIMEZONE', 'Only Asia/Kolkata is supported (fixed +05:30 offset).');
   if (!data.licence) error('SHAPE', 'Licence/source notice is missing.');
+  if (!Number.isFinite(data.location.lat) || Math.abs(data.location.lat) > 90 || !Number.isFinite(data.location.lng) || Math.abs(data.location.lng) > 180) {
+    error('BAD_NUMBER', 'Dataset location has invalid coordinates.');
+  }
   if (!isHHMM(data.supportedWindow?.start ?? '') || !isHHMM(data.supportedWindow?.end ?? '')) {
     error('WINDOW_FORMAT', 'supportedWindow must use HH:MM times.');
   } else if (parseHHMM(data.supportedWindow.start) >= parseHHMM(data.supportedWindow.end)) {
@@ -77,7 +81,7 @@ export function validateDataset(data: Dataset, options: ValidateOptions = {}): I
   const nodes = new Map(data.nodes.map((n) => [n.id, n]));
 
   const checkDate = (what: string, value: string) => {
-    if (!ISO_DATE.test(value ?? '') || Number.isNaN(Date.parse(value))) error('BAD_DATE', `${what} verifiedAt must be YYYY-MM-DD.`);
+    if (!isCalendarDate(value)) error('BAD_DATE', `${what} verifiedAt must be a valid YYYY-MM-DD calendar date.`);
   };
 
   // ---- Nodes ----
@@ -109,6 +113,9 @@ export function validateDataset(data: Dataset, options: ValidateOptions = {}): I
     if (!Array.isArray(e.geometry) || e.geometry.length < 2) {
       error('GEOMETRY', `Edge ${e.id} needs at least two geometry points.`);
     } else {
+      if (e.geometry.some(([lat, lng]) => !Number.isFinite(lat) || Math.abs(lat) > 90 || !Number.isFinite(lng) || Math.abs(lng) > 180)) {
+        error('GEOMETRY', `Edge ${e.id} has invalid geometry coordinates.`);
+      }
       const first = e.geometry[0];
       const last = e.geometry[e.geometry.length - 1];
       if (metersBetween(first, [from.lat, from.lng]) > ENDPOINT_TOLERANCE_M) {
@@ -186,6 +193,9 @@ export function validateDataset(data: Dataset, options: ValidateOptions = {}): I
   const edgesById = new Map(data.edges.map((e) => [e.id, e]));
   for (const w of data.curatedWalks) {
     checkDate(`Walk ${w.id}`, w.verifiedAt);
+    if (!nodes.has(w.startNodeId)) error('MISSING_REF', `Walk ${w.id} starts at a missing node.`);
+    if (w.edgeIds.length === 0) error('WALK_CONTINUITY', `Walk ${w.id} has no walking edges.`);
+    if (new Set(w.stops.map((s) => s.placeId)).size !== w.stops.length) error('WALK_STOP', `Walk ${w.id} lists a stop more than once.`);
     const walkEdges = w.edgeIds.map((id) => edgesById.get(id));
     if (walkEdges.some((e) => !e) || w.edgeIds.some((id) => !edgeIds.has(id))) {
       error('MISSING_REF', `Walk ${w.id} refers to a missing edge.`);

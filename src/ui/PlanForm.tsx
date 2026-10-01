@@ -1,22 +1,8 @@
 import type { KeyboardEvent } from 'react'
 import { OCCASION_IDS, OCCASIONS } from '../core/planner/occasions'
-import type { Dataset, Occasion, Pace } from '../core/types'
+import type { Dataset, Occasion } from '../core/types'
 import { ripple, spotlight } from './effects'
-
-export interface FormState {
-  startId: string
-  occasion: Occasion
-  durationMin: number
-  budgetInr: number
-  required: [string, string]
-  requireCafe: boolean
-  pace: Pace
-  backBy: string
-  avoidSteps: boolean
-  rain: boolean
-  /** Empty = now. Otherwise an IST datetime-local value for previewing another time. */
-  previewAt: string
-}
+import type { FormState } from './planningState'
 
 const DURATIONS = [30, 45, 60, 90]
 const BUDGETS = [0, 100, 200, 300]
@@ -27,9 +13,11 @@ interface Props {
   state: FormState
   onChange: (patch: Partial<FormState>) => void
   durationError: string | null
+  budgetError: string | null
+  previewError: string | null
 }
 
-export function PlanForm({ dataset, state, onChange, durationError }: Props) {
+export function PlanForm({ dataset, state, onChange, durationError, budgetError, previewError }: Props) {
   const pickMode = (id: Occasion) => onChange({ occasion: id, ...OCCASIONS[id].defaults })
   const schedulable = dataset.places.filter((p) => p.category !== 'waypoint')
   const groups = (['cafe', 'seating', 'landmark'] as const).map((c) => ({ c, places: schedulable.filter((p) => p.category === c) }))
@@ -121,10 +109,14 @@ export function PlanForm({ dataset, state, onChange, durationError }: Props) {
               inputMode="numeric"
               min={0}
               step={10}
-              value={state.budgetInr}
-              onChange={(e) => onChange({ budgetInr: Math.max(0, Number(e.target.value) || 0) })}
+              value={Number.isFinite(state.budgetInr) ? state.budgetInr : ''}
+              max={100000}
+              aria-invalid={Boolean(budgetError)}
+              aria-describedby={budgetError ? 'budget-error' : undefined}
+              onChange={(e) => onChange({ budgetInr: e.target.value === '' ? NaN : Number(e.target.value) })}
             />
           </div>
+          {budgetError && <p className="error" id="budget-error">{budgetError}</p>}
         </div>
 
         <div className="two">
@@ -176,23 +168,27 @@ export function PlanForm({ dataset, state, onChange, durationError }: Props) {
               <p className="hint">For hostel in-times or a class. Plans always end before sunset.</p>
             </div>
             <label className="switch">
-              <span>Avoid steps<small>Only paths without stairs. Not a wheelchair-access guarantee.</small></span>
+              <span>Avoid steps<small>Excludes paths marked with steps. Not a wheelchair-access guarantee.</small></span>
               <input type="checkbox" checked={state.avoidSteps} onChange={(e) => onChange({ avoidSteps: e.target.checked })} />
             </label>
             <label className="switch">
-              <span>Rain mode<small>Sheltered stops only; prefers covered paths.</small></span>
+              <span>Rain mode<small>Prefers covered paths and sheltered stops. Must-visit places may be unsheltered.</small></span>
               <input type="checkbox" checked={state.rain} onChange={(e) => onChange({ rain: e.target.checked })} />
             </label>
+            {dataset.isFixture && <p className="hint">Steps and path cover have not been surveyed in this demo. Check the route before relying on these options.</p>}
             <div className="field">
               <label htmlFor="preview">Plan as if it's… (preview)</label>
               <div className="row">
-                <input id="preview" className="input" style={{ flex: 1 }} type="datetime-local" value={state.previewAt} onChange={(e) => onChange({ previewAt: e.target.value })} />
+                <input id="preview" className="input" style={{ flex: 1 }} type="datetime-local" value={state.previewAt} aria-invalid={Boolean(previewError)} aria-describedby={previewError ? 'preview-error' : 'preview-hint'} onChange={(e) => onChange({ previewAt: e.target.value })} />
                 {state.previewAt && (
                   <button type="button" className="btn ghost" onPointerDown={ripple} onClick={() => onChange({ previewAt: '' })}>Use now</button>
                 )}
               </div>
-              <p className="hint">Times are India Standard Time. Leave empty to plan from right now.</p>
+              {previewError && <p className="error" id="preview-error">{previewError}</p>}
+              <p className="hint" id="preview-hint">Times are India Standard Time. Leave empty to plan from right now.</p>
             </div>
+            {state.bufferMin !== undefined && <p className="hint">This shared walk includes a {state.bufferMin}-minute buffer.</p>}
+            {state.dwellOverridesMin && <p className="hint">This shared walk includes custom stop times.</p>}
           </div>
         </details>
       </section>

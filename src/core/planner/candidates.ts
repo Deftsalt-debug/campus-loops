@@ -1,4 +1,5 @@
 import type { Occasion, Place } from '../types';
+import { parseHHMM } from '../time/clock';
 import type { RequestContext } from './context';
 import { occasionPoints } from './score';
 
@@ -32,6 +33,7 @@ export function placeIneligibility(
 
 export interface CandidateOptions {
   budgetInr: number;
+  availableSec: number;
   rain: boolean;
   occasion: Occasion;
   maxCandidates: number;
@@ -56,6 +58,19 @@ export function selectCandidates(places: Place[], ctx: RequestContext, opts: Can
 
   const ranked = places
     .filter((p) => !ctx.requiredIds.has(p.id) && placeIneligibility(p, ctx, opts.budgetInr, opts.rain) === null)
+    .filter((p) => {
+      // Only discard impossible stops: any actual route takes at least the
+      // shortest outbound/return times. This keeps closed or distant places
+      // from consuming the limited candidate slots ahead of feasible ones.
+      const earliestArrival = ctx.nowSec + ctx.fromStart.dist.get(p.nodeId)!;
+      const latestDeparture = ctx.nowSec + opts.availableSec - ctx.toStartLowerBound.dist.get(p.nodeId)! - ctx.bufferSec;
+      const dwell = ctx.dwellSec(p);
+      if (earliestArrival + dwell > latestDeparture) return false;
+      return p.hoursStatus !== 'verified' || p.verifiedOpenWindows.some((w) =>
+        w.day === ctx.weekday &&
+        Math.max(earliestArrival, parseHHMM(w.start) * 60) + dwell <= Math.min(latestDeparture, parseHHMM(w.end) * 60),
+      );
+    })
     .map((p) => ({
       place: p,
       points: occasionPoints(p.category, p.tags, opts.occasion),

@@ -18,14 +18,20 @@ export function evaluateCurated(
   rain: boolean,
 ): CuratedOutcome {
   if (walk.startNodeId !== ctx.startNode) return { ok: false, reason: 'unreachable' };
+  if (walk.stops.length > ctx.maxStops || new Set(walk.stops.map((s) => s.placeId)).size !== walk.stops.length) {
+    return { ok: false, reason: 'requirements' };
+  }
 
   // Every edge must still be usable for this request (allowed, and no steps if avoiding them).
   const edges: Edge[] = [];
+  let at = ctx.startNode;
   for (const id of walk.edgeIds) {
     const edge = ctx.graph.edges.get(id);
-    if (!edge) return { ok: false, reason: 'unreachable' };
+    if (!edge || edge.from !== at) return { ok: false, reason: 'unreachable' };
     edges.push(edge);
+    at = edge.to;
   }
+  if (at !== ctx.startNode) return { ok: false, reason: 'unreachable' };
 
   const stops = [...walk.stops].sort((a, b) => a.afterEdge - b.afterEdge);
   const visits: ScheduledVisit[] = [];
@@ -51,7 +57,7 @@ export function evaluateCurated(
       ) {
         return { ok: false, reason: 'hours' };
       }
-      visits.push({ place, arriveSec: elapsed, dwellSec });
+      visits.push({ place, arriveSec: elapsed, dwellSec, afterEdge: i });
       elapsed += dwellSec;
       const { low, high } = spendOf(place);
       spendLow += low;

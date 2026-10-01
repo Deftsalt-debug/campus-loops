@@ -20,26 +20,71 @@ function defaultStore(): KeyValueStore | null {
   }
 }
 
+const isIdentifier = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim().length > 0 && value.length <= 512;
+
+const isSeconds = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
 function isWalkLog(v: unknown): v is WalkLog {
   if (typeof v !== 'object' || v === null) return false;
   const o = v as Record<string, unknown>;
   return (
-    typeof o.id === 'string' &&
-    typeof o.planId === 'string' &&
-    typeof o.datasetVersion === 'string' &&
+    isIdentifier(o.id) &&
+    isIdentifier(o.planId) &&
+    isIdentifier(o.datasetVersion) &&
     (o.pace === 'relaxed' || o.pace === 'normal') &&
-    typeof o.predictedWalkSec === 'number' &&
-    typeof o.actualWalkSec === 'number' &&
-    typeof o.loggedAt === 'string'
+    isSeconds(o.predictedWalkSec) &&
+    isSeconds(o.actualWalkSec) &&
+    (o.predictedDwellSec === undefined || isSeconds(o.predictedDwellSec)) &&
+    (o.actualDwellSec === undefined || isSeconds(o.actualDwellSec)) &&
+    typeof o.loggedAt === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(o.loggedAt) &&
+    Number.isFinite(Date.parse(o.loggedAt))
   );
+}
+
+/** Keep only the documented fields, including in exports of older stored records. */
+function cleanLog(log: WalkLog): WalkLog {
+  return {
+    id: log.id,
+    planId: log.planId,
+    datasetVersion: log.datasetVersion,
+    pace: log.pace,
+    predictedWalkSec: log.predictedWalkSec,
+    actualWalkSec: log.actualWalkSec,
+    ...(log.predictedDwellSec === undefined ? {} : { predictedDwellSec: log.predictedDwellSec }),
+    ...(log.actualDwellSec === undefined ? {} : { actualDwellSec: log.actualDwellSec }),
+    loggedAt: log.loggedAt,
+  };
+}
+
+function readLogs(store: KeyValueStore): WalkLog[] {
+  // A failed read must reach save/remove so they cannot overwrite existing logs.
+  const raw = store.getItem(KEY);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw ?? '[]');
+  } catch {
+    return []; // Corrupt JSON is recoverable by saving a fresh valid record.
+  }
+  if (!Array.isArray(parsed)) return [];
+  const logs = new Map<string, WalkLog>();
+  for (const entry of parsed) {
+    if (isWalkLog(entry)) {
+      // The newest stored record with an ID wins, matching saveLog replacement.
+      logs.delete(entry.id);
+      logs.set(entry.id, cleanLog(entry));
+    }
+  }
+  return [...logs.values()];
 }
 
 /** Saved logs. Corrupt or unreadable storage gives an empty list rather than an error. */
 export function listLogs(store: KeyValueStore | null = defaultStore()): WalkLog[] {
   if (!store) return [];
   try {
-    const parsed: unknown = JSON.parse(store.getItem(KEY) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter(isWalkLog) : [];
+    return readLogs(store);
   } catch {
     return [];
   }
@@ -49,8 +94,8 @@ export function listLogs(store: KeyValueStore | null = defaultStore()): WalkLog[
 export function saveLog(log: WalkLog, store: KeyValueStore | null = defaultStore()): boolean {
   if (!store || !isWalkLog(log)) return false;
   try {
-    const logs = listLogs(store).filter((l) => l.id !== log.id);
-    store.setItem(KEY, JSON.stringify([...logs, log]));
+    const logs = readLogs(store).filter((l) => l.id !== log.id);
+    store.setItem(KEY, JSON.stringify([...logs, cleanLog(log)]));
     return true;
   } catch {
     return false;
@@ -60,7 +105,7 @@ export function saveLog(log: WalkLog, store: KeyValueStore | null = defaultStore
 export function removeLog(id: string, store: KeyValueStore | null = defaultStore()): boolean {
   if (!store) return false;
   try {
-    store.setItem(KEY, JSON.stringify(listLogs(store).filter((l) => l.id !== id)));
+    store.setItem(KEY, JSON.stringify(readLogs(store).filter((l) => l.id !== id)));
     return true;
   } catch {
     return false;
