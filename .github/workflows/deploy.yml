@@ -24,7 +24,7 @@ jobs:
       VITE_MAP_TILE_ATTRIBUTION: ${{ vars.VITE_MAP_TILE_ATTRIBUTION }}
       VITE_MAP_TILE_MAX_ZOOM: ${{ vars.VITE_MAP_TILE_MAX_ZOOM }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v4
