@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { encodeShare } from '../src/core/share'
 import type { KeyValueStore } from '../src/storage/calibrationLog'
-import { exportSavedPlans, importSavedPlans, listSavedPlans, MAX_BACKUP_BYTES, MAX_SAVED_PLANS, removeSavedPlan, savePlan, SAVED_PLANS_BACKUP_FORMAT, SAVED_PLANS_BACKUP_VERSION, type SavedPlan } from '../src/storage/savedPlans'
+import { exportSavedPlans, importSavedPlans, listSavedPlans, MAX_BACKUP_BYTES, MAX_SAVED_PLANS, readSavedPlans, removeSavedPlan, repairSavedPlans, savePlan, SAVED_PLANS_BACKUP_FORMAT, SAVED_PLANS_BACKUP_VERSION, type SavedPlan } from '../src/storage/savedPlans'
 import { initialForm, toRequest } from '../src/ui/planningState'
 import { fixture } from './helpers'
 
@@ -65,6 +65,63 @@ describe('saved walks', () => {
     expect(removeSavedPlan(saved().hash, store)).toBe(false)
     expect(store.setItem).not.toHaveBeenCalled()
   })
+
+  it.each(['garbage', '{}', 'null', JSON.stringify([saved(), { hash: '#broken' }])])('preserves damaged saved storage until explicit repair: %s', (raw) => {
+    const store = memoryStore(raw)
+    const write = vi.spyOn(store, 'setItem')
+    expect(readSavedPlans(store).status).toBe('corrupt')
+    expect(savePlan(saved(50), store)).toBe('corrupt')
+    expect(removeSavedPlan(saved().hash, store)).toBe(false)
+    expect(importSavedPlans(backup([saved(50)]), store)).toMatchObject({ ok: false, reason: 'corrupt' })
+    expect(store.value).toBe(raw)
+    expect(write).not.toHaveBeenCalled()
+    const readable = listSavedPlans(store)
+    expect(repairSavedPlans(store)).toBe(true)
+    expect(readSavedPlans(store)).toEqual({ status: 'ready', plans: readable })
+    expect(savePlan(saved(50), store)).toBe('saved')
+  })
+
+  it('keeps every readable overflow record until that specific walk is removed', () => {
+    const plans = Array.from({ length: MAX_SAVED_PLANS + 2 }, (_, i) => saved(i))
+    const store = memoryStore(JSON.stringify(plans))
+    const original = store.value
+    expect(listSavedPlans(store)).toEqual(plans)
+    expect(savePlan(saved(500), store)).toBe('full')
+    expect(importSavedPlans(backup([saved(500)]), store)).toMatchObject({ ok: false, reason: 'full' })
+    expect(exportSavedPlans(store)).toMatchObject({ ok: false, message: expect.stringContaining('All 14 readable walks have been kept') })
+    expect(store.value).toBe(original)
+    expect(removeSavedPlan(plans[0].hash, store)).toBe(true)
+    expect(listSavedPlans(store)).toEqual(plans.slice(1))
+    expect(removeSavedPlan(plans[1].hash, store)).toBe(true)
+    expect(exportSavedPlans(store)).toMatchObject({ ok: true, count: MAX_SAVED_PLANS })
+  })
+
+  it('retains overflow walks when explicitly repairing mixed storage and preserves data on repair failure', () => {
+    const plans = Array.from({ length: MAX_SAVED_PLANS + 1 }, (_, i) => saved(i))
+    const store = memoryStore(JSON.stringify([...plans, null]))
+    const original = store.value
+    const write = store.setItem
+    store.setItem = () => { throw new Error('quota') }
+    expect(repairSavedPlans(store)).toBe(false)
+    expect(store.value).toBe(original)
+    store.setItem = write
+    expect(repairSavedPlans(store)).toBe(true)
+    expect(listSavedPlans(store)).toEqual(plans)
+    expect(repairSavedPlans(store)).toBe(false)
+  })
+
+  it('bounds oversized storage reads without allowing an implicit replacement', () => {
+    const store = memoryStore(' '.repeat(1_000_001))
+    const original = store.value
+    const write = vi.spyOn(store, 'setItem')
+    expect(readSavedPlans(store)).toEqual({ status: 'corrupt', plans: [] })
+    expect(savePlan(saved(), store)).toBe('corrupt')
+    expect(importSavedPlans(backup(), store)).toMatchObject({ ok: false, reason: 'corrupt' })
+    expect(removeSavedPlan(saved().hash, store)).toBe(false)
+    expect(exportSavedPlans(store).ok).toBe(false)
+    expect(store.value).toBe(original)
+    expect(write).not.toHaveBeenCalled()
+  })
 })
 
 function backup(plans: unknown[] = [saved()]): string {
@@ -72,6 +129,16 @@ function backup(plans: unknown[] = [saved()]): string {
 }
 
 describe('saved-walk backups', () => {
+  it('exports readable salvage with a warning without repairing the source or claiming an empty damaged store is backed up', () => {
+    const store = memoryStore(JSON.stringify([saved(), { broken: true }]))
+    const original = store.value
+    const exported = exportSavedPlans(store)
+    expect(exported).toMatchObject({ ok: true, count: 1, warning: expect.stringContaining('Only readable walks') })
+    if (!exported.ok) throw new Error(exported.message)
+    expect(JSON.parse(exported.json).plans).toEqual([saved()])
+    expect(store.value).toBe(original)
+    expect(exportSavedPlans(memoryStore('broken'))).toMatchObject({ ok: false, message: expect.stringContaining('no readable walks') })
+  })
   it('exports and restores a versioned backup without changing original links', () => {
     const source = memoryStore()
     const oldDataset = { ...saved(), hash: saved().hash.replace(/d=[^&]+/, 'd=older-campus-dataset'), name: 'Monsoon walk 🌧️' }

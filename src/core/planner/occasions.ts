@@ -128,7 +128,7 @@ export const OCCASIONS: Record<Occasion, OccasionProfile> = {
 export const OCCASION_IDS = Object.keys(OCCASIONS) as Occasion[];
 
 export function isOccasion(value: unknown): value is Occasion {
-  return typeof value === 'string' && value in OCCASIONS;
+  return typeof value === 'string' && Object.hasOwn(OCCASIONS, value);
 }
 
 function ruleMatches(rule: OccasionRule, category: PlaceCategory, tags: Set<string>): boolean {

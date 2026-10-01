@@ -59,42 +59,50 @@ function cleanLog(log: WalkLog): WalkLog {
   };
 }
 
-function readLogs(store: KeyValueStore): WalkLog[] {
-  // A failed read must reach save/remove so they cannot overwrite existing logs.
-  const raw = store.getItem(KEY);
+export type LogStorageStatus = 'ready' | 'corrupt' | 'unavailable';
+
+function readLogSnapshot(store: KeyValueStore | null): { logs: WalkLog[]; status: LogStorageStatus } {
+  if (!store) return { logs: [], status: 'unavailable' };
+  let raw: string | null;
+  try { raw = store.getItem(KEY); } catch { return { logs: [], status: 'unavailable' }; }
+  // Bound work on arbitrary storage contents without modifying oversized data.
+  if (raw !== null && raw.length > 1_000_000) return { logs: [], status: 'corrupt' };
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw ?? '[]');
   } catch {
-    return []; // Corrupt JSON is recoverable by saving a fresh valid record.
+    return { logs: [], status: 'corrupt' };
   }
-  if (!Array.isArray(parsed)) return [];
+  if (!Array.isArray(parsed)) return { logs: [], status: 'corrupt' };
   const logs = new Map<string, WalkLog>();
+  let damaged = false;
   for (const entry of parsed) {
     if (isWalkLog(entry)) {
       // The newest stored record with an ID wins, matching saveLog replacement.
       logs.delete(entry.id);
       logs.set(entry.id, cleanLog(entry));
-    }
+    } else damaged = true;
   }
-  return [...logs.values()];
+  return { logs: [...logs.values()], status: damaged ? 'corrupt' : 'ready' };
 }
 
-/** Saved logs. Corrupt or unreadable storage gives an empty list rather than an error. */
+/** Keep damaged data distinct from blocked storage so recovery advice cannot erase valid logs. */
+export function getLogStorageStatus(store: KeyValueStore | null = defaultStore()): LogStorageStatus {
+  return readLogSnapshot(store).status;
+}
+
+/** Readable saved logs; malformed rows are omitted without modifying the original store. */
 export function listLogs(store: KeyValueStore | null = defaultStore()): WalkLog[] {
-  if (!store) return [];
-  try {
-    return readLogs(store);
-  } catch {
-    return [];
-  }
+  return readLogSnapshot(store).logs;
 }
 
-/** Returns false when storage is unavailable or full. */
+/** Returns false when storage is unavailable, full, or damaged; never repairs implicitly. */
 export function saveLog(log: WalkLog, store: KeyValueStore | null = defaultStore()): boolean {
   if (!store || !isWalkLog(log)) return false;
+  const snapshot = readLogSnapshot(store);
+  if (snapshot.status !== 'ready') return false;
   try {
-    const logs = readLogs(store).filter((l) => l.id !== log.id);
+    const logs = snapshot.logs.filter((l) => l.id !== log.id);
     store.setItem(KEY, JSON.stringify([...logs, cleanLog(log)]));
     return true;
   } catch {
@@ -104,8 +112,10 @@ export function saveLog(log: WalkLog, store: KeyValueStore | null = defaultStore
 
 export function removeLog(id: string, store: KeyValueStore | null = defaultStore()): boolean {
   if (!store) return false;
+  const snapshot = readLogSnapshot(store);
+  if (snapshot.status !== 'ready') return false;
   try {
-    store.setItem(KEY, JSON.stringify(readLogs(store).filter((l) => l.id !== id)));
+    store.setItem(KEY, JSON.stringify(snapshot.logs.filter((l) => l.id !== id)));
     return true;
   } catch {
     return false;

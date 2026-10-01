@@ -3,7 +3,7 @@ import { planToGpx, planToIcs, planToKml, planToText } from '../core/export/file
 import { googleMapsDirectionsUrl } from '../core/export/googleMaps'
 import { planGeometry } from '../core/geo'
 import type { Dataset, Plan } from '../core/types'
-import { saveLog } from '../storage/calibrationLog'
+import { getLogStorageStatus, saveLog } from '../storage/calibrationLog'
 import { ripple, spotlight } from './effects'
 import { clock, download, km, mins, rupees, slug } from './format'
 
@@ -137,7 +137,7 @@ function PlanDetails({
       actualWalkSec: minutes * 60,
       loggedAt: new Date().toISOString(),
     })
-    notify(ok ? 'Saved on this device. Thanks!' : 'Storage is unavailable in this browser')
+    notify(ok ? 'Saved on this device. Thanks!' : getLogStorageStatus() === 'corrupt' ? 'Calibration data needs attention. Open Calibration log to export readable entries before clearing it.' : 'Storage is full or unavailable in this browser')
     if (ok) {
       setActualMin('')
       onLogged()
@@ -228,7 +228,7 @@ function PlanDetails({
         </button>
       </div>
       <p className="hint">
-        Google Maps finds its own path through {google.waypoints.length} points along this route, so it can differ slightly. For the
+        Google Maps chooses its own path through {google.waypoints.length} route points and may differ from this plan. For the
         exact line, import the KML at <a href="https://www.google.com/mymaps" target="_blank" rel="noopener noreferrer">Google My Maps</a>{' '}
         (Create map → Import). It then appears in the Google Maps app under Saved → Maps.
       </p>

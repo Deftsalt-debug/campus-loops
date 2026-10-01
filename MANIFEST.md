@@ -82,7 +82,7 @@ Other commands:
 
 | Option | What happens | Accuracy |
 |---|---|---|
-| **Open in Google Maps** | Opens walking directions: start → your stops (in order) → back to start, with up to 9 points sampled along our route so Google follows it closely. No API key. | Google picks its own paths *between* points, so it can differ slightly. On the tested route Google said **23 min** against our **26 min**, which is a good sign our estimates are realistic. Mobile *browsers* only accept 3 waypoints; the Google Maps *app* accepts 9. |
+| **Open in Google Maps** | Opens walking directions: start → your stops (in order) → back to start. Up to three waypoints preserve all planned visits, then add shaping points if space remains. No API key. | The three-waypoint default fits mobile browsers as well as desktop and the Maps app. Google chooses its own paths between points, so its route and times may differ. Use KML/GPX for the exact drawn route. |
 | **KML for Google My Maps** | Download the KML, go to https://www.google.com/mymaps → *Create a new map* → *Import* → pick the file. | Exact line, stop pins and descriptions. It then shows up in the Google Maps app under **Saved → Maps**. |
 | **GPX** | For other apps (Organic Maps, Strava, Komoot…). | Exact line. |
 
@@ -151,7 +151,7 @@ src/storage/         calibrationLog.ts, savedPlans.ts, fieldNotes.ts (localStora
 src/data/            manipal-demo.json, fixtures/pilot-fixture.json
 scripts/             import-osm.ts, osm-rules.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
 data/osm/            raw OSM snapshot, provenance + elevation cache (ODbL)
-tests/               20 files; see RELEASE.md for the latest QA checkpoint
+tests/               21 files; see RELEASE.md for the latest QA checkpoint
 .github/workflows/   deploy.yml (verify → build → GitHub Pages)
 ROADMAP.md           product plan, decisions, weekly checklists
 ```

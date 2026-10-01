@@ -6,7 +6,7 @@ import { plan, rebuildPlan } from './core/planner/plan'
 import { decodeShare, encodeShare } from './core/share'
 import { toIst } from './core/time/clock'
 import type { Dataset, PlanResult } from './core/types'
-import { clearLogs, exportLogsJson, listLogs } from './storage/calibrationLog'
+import { clearLogs, exportLogsJson, getLogStorageStatus, listLogs } from './storage/calibrationLog'
 import { listSavedPlans, removeSavedPlan, savePlan } from './storage/savedPlans'
 import { Backdrop } from './ui/Backdrop'
 import { ripple } from './ui/effects'
@@ -191,13 +191,13 @@ export default function App() {
   const saveCurrent = () => {
     if (!selected || !shareHash) return
     const status = savePlan({ hash: shareHash, name: selected.name, savedAt: new Date().toISOString() })
-    notify(status === 'saved' ? 'Walk saved on this device' : status === 'full' ? 'Saved walks are full. Remove one to make room.' : 'Storage is unavailable in this browser')
+    notify(status === 'saved' ? 'Walk saved on this device' : status === 'full' ? 'Saved walks are full. Remove one to make room.' : status === 'corrupt' ? 'Saved walks need repair. Open Saved walks to export readable entries and repair.' : 'Storage is unavailable in this browser')
     setSavedPlans(listSavedPlans())
   }
 
   const removeSaved = (hash: string) => {
     const ok = removeSavedPlan(hash)
-    notify(ok ? 'Saved walk removed' : 'Storage is unavailable in this browser')
+    notify(ok ? 'Saved walk removed' : 'The saved walk could not be removed. Open Saved walks for storage or repair details.')
     setSavedPlans(listSavedPlans())
   }
 
@@ -358,6 +358,7 @@ export default function App() {
             </p>
             <details className="more calib">
               <summary>Calibration log ({logCount})</summary>
+              {getLogStorageStatus() === 'corrupt' && <p className="notice" role="status">Some calibration data is unreadable. New logs are paused to preserve it. Export readable logs first; Clear then removes all stored calibration data so you can start again.</p>}
               <p className="hint">{calibrationSummaryText(listLogs())}</p>
               <div className="row">
                 <button type="button" className="btn" onPointerDown={ripple} onClick={() => download('campus-loops-walks.json', 'application/json', exportLogsJson())}>

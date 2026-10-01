@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WalkLog } from '../src/core/calibration';
-import { listLogs, removeLog, saveLog, exportLogsJson, type KeyValueStore } from '../src/storage/calibrationLog';
+import { clearLogs, getLogStorageStatus, listLogs, removeLog, saveLog, exportLogsJson, type KeyValueStore } from '../src/storage/calibrationLog';
 
 const valid: WalkLog = {
   id: 'walk-1',
@@ -38,6 +38,7 @@ describe('calibration storage boundaries', () => {
   ])('drops malformed stored fields: %j', (patch) => {
     const store = memoryStore([{ ...valid, ...patch }]);
     expect(listLogs(store)).toEqual([]);
+    expect(getLogStorageStatus(store)).toBe('corrupt');
   });
 
   it.each([NaN, Infinity, -Infinity])('rejects non-finite times before JSON can turn them into null: %s', (seconds) => {
@@ -73,8 +74,44 @@ describe('calibration storage boundaries', () => {
       removeItem: vi.fn(),
     };
     expect(listLogs(store)).toEqual([]);
+    expect(getLogStorageStatus(store)).toBe('unavailable');
     expect(saveLog(valid, store)).toBe(false);
     expect(removeLog(valid.id, store)).toBe(false);
     expect(write).not.toHaveBeenCalled();
+  });
+
+  it.each(['broken JSON', '{}', 'null', JSON.stringify([valid, { broken: true }])])('preserves damaged storage while allowing readable export and explicit clear: %s', (raw) => {
+    let value: string | null = raw;
+    const store: KeyValueStore = {
+      getItem: () => value,
+      setItem: vi.fn((_key, next) => { value = next; }),
+      removeItem: () => { value = null; },
+    };
+    expect(saveLog({ ...valid, id: 'new' }, store)).toBe(false);
+    expect(getLogStorageStatus(store)).toBe('corrupt');
+    expect(removeLog(valid.id, store)).toBe(false);
+    expect(store.setItem).not.toHaveBeenCalled();
+    expect(value).toBe(raw);
+    expect(JSON.parse(exportLogsJson(store))).toEqual(raw.startsWith('[') ? [valid] : []);
+    expect(value).toBe(raw);
+    expect(clearLogs(store)).toBe(true);
+    expect(getLogStorageStatus(store)).toBe('ready');
+    expect(saveLog(valid, store)).toBe(true);
+    expect(listLogs(store)).toEqual([valid]);
+  });
+
+  it('bounds reading oversized storage and distinguishes quota failure from corruption', () => {
+    const oversized = ' '.repeat(1_000_001);
+    const store: KeyValueStore = { getItem: () => oversized, setItem: vi.fn(), removeItem: vi.fn() };
+    expect(getLogStorageStatus(store)).toBe('corrupt');
+    expect(saveLog(valid, store)).toBe(false);
+    expect(removeLog(valid.id, store)).toBe(false);
+    expect(store.setItem).not.toHaveBeenCalled();
+    expect(getLogStorageStatus(null)).toBe('unavailable');
+    const full = memoryStore([valid]);
+    full.setItem = () => { throw new Error('quota'); };
+    expect(saveLog({ ...valid, id: 'new' }, full)).toBe(false);
+    expect(getLogStorageStatus(full)).toBe('ready');
+    expect(listLogs(full)).toEqual([valid]);
   });
 });

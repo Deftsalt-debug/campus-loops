@@ -275,7 +275,9 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, onSe
     const m = map.current
     if (!m) return
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#0d7a55'
-    const focusId = hoveredId ?? selectedId
+    // Keyboard edits or a clock tick can remove a card while the pointer stays
+    // still. A stale hover must not hide the newly selected route and its pins.
+    const focusId = hoveredId && routes.current.has(hoveredId) ? hoveredId : selectedId
     for (const [id, route] of routes.current) {
       const focused = id === focusId
       route.casing.setStyle({ opacity: focused ? 0.9 : 0 })

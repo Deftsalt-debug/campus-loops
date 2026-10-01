@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { planToGpx, planToIcs, planToKml, planToText } from '../src/core/export/files';
 import { loadDataset } from '../src/core/dataset/load';
 import { googleMapsDirectionsUrl, MAX_WAYPOINTS } from '../src/core/export/googleMaps';
-import { haversineM, planGeometry } from '../src/core/geo';
+import { haversineM, planGeometry, type RouteGeometry } from '../src/core/geo';
 import { plan, rebuildPlan } from '../src/core/planner/plan';
+import { OCCASION_IDS, OCCASIONS } from '../src/core/planner/occasions';
 import { decodeShare, encodeShare } from '../src/core/share';
-import type { Plan, PlanRequest } from '../src/core/types';
+import type { Dataset, LatLng, Plan, PlanRequest } from '../src/core/types';
+import demoJson from '../src/data/manipal-demo.json';
 import { fixture, ist, tinyDataset, twoWay } from './helpers';
 
 const ds = fixture();
@@ -77,9 +79,63 @@ describe('Google Maps link', () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
-  it('respects a tighter waypoint limit for mobile browsers', () => {
-    const mobile = googleMapsDirectionsUrl(route, 3);
-    expect(mobile.waypoints.length).toBeLessThanOrEqual(3);
+  it('defaults to the three-waypoint mobile browser contract', () => {
+    expect(MAX_WAYPOINTS).toBe(3);
+    expect(link.waypoints.length).toBeLessThanOrEqual(3);
+  });
+
+  const expectVisitsInOrder = (geometry: RouteGeometry, directions: ReturnType<typeof googleMapsDirectionsUrl>) => {
+    const points = new URL(directions.url).searchParams.get('waypoints')?.split('|') ?? [];
+    let previous = -1;
+    for (const stop of geometry.stops) {
+      const coordinate = `${stop.at[0].toFixed(6)},${stop.at[1].toFixed(6)}`;
+      const position = points.findIndex((point, index) => index > previous && point === coordinate);
+      expect(position, `Missing or reordered visit ${stop.placeId}`).toBeGreaterThan(previous);
+      previous = position;
+    }
+    expect(directions.url.length).toBeLessThanOrEqual(2048);
+  };
+
+  it('keeps all three visits ahead of shaping points on a long route, while allowing an explicit nine-point caller', () => {
+    const path: LatLng[] = Array.from({ length: 1201 }, (_, i) => [
+      13.35 + 0.02 * Math.sin(i * 2 * Math.PI / 1200),
+      74.79 + 0.02 * Math.cos(i * 2 * Math.PI / 1200),
+    ]);
+    const longRoute: RouteGeometry = {
+      start: path[0], path, bounds: [[13.33, 74.77], [13.37, 74.81]],
+      stops: [200, 600, 1000].map((pathIndex, i) => ({ placeId: `stop-${i}`, name: `Stop ${i}`, at: path[pathIndex], pathIndex, passBy: i === 1 })),
+    };
+    const mobile = googleMapsDirectionsUrl(longRoute);
+    expect(mobile.waypoints).toEqual(longRoute.stops.map((stop) => stop.at));
+    expect(mobile.shapingPoints).toBe(0);
+    expectVisitsInOrder(longRoute, mobile);
+    const expanded = googleMapsDirectionsUrl(longRoute, 9);
+    expect(expanded.waypoints.length).toBeGreaterThan(3);
+    expect(expanded.waypoints.length).toBeLessThanOrEqual(9);
+    expectVisitsInOrder(longRoute, expanded);
+  });
+
+  it('exports every returned campus walk with ordered visits inside the mobile limit', () => {
+    const campus = demoJson as unknown as Dataset;
+    let checked = 0;
+    let longestDistance = 0;
+    for (const start of campus.starts) {
+      for (const occasion of OCCASION_IDS) {
+        for (const durationMin of [OCCASIONS[occasion].defaults.durationMin, 90]) {
+          const request: PlanRequest = { startId: start.id, occasion, ...OCCASIONS[occasion].defaults, durationMin, requiredPlaceIds: [], avoidSteps: false, rain: false };
+          for (const walk of plan(campus, request, ist('2026-10-02', '10:00')).plans) {
+            const geometry = planGeometry(campus, walk);
+            const directions = googleMapsDirectionsUrl(geometry);
+            expect(directions.waypoints.length).toBeLessThanOrEqual(3);
+            expectVisitsInOrder(geometry, directions);
+            longestDistance = Math.max(longestDistance, walk.distanceM);
+            checked++;
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(100);
+    expect(longestDistance).toBeGreaterThan(2000);
   });
 });
 

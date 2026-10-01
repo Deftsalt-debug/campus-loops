@@ -1,11 +1,12 @@
 import { cumulativeDistances, haversineM, type RouteGeometry } from '../geo';
 import type { LatLng } from '../types';
 
-// Google Maps URLs (developers.google.com/maps/documentation/urls): no API key needed.
-// Directions links take an origin, a destination and up to 9 waypoints (3 in mobile
-// browsers; the Google Maps app accepts 9), and the whole URL must stay under 2,048 characters.
+// Google Maps URLs: https://developers.google.com/maps/documentation/urls/get-started#directions-action
+// Mobile browsers support up to 3 waypoints; other platforms support up to 9.
+// Use the shared 3-point limit by default because the caller cannot know whether
+// a phone has the Maps app installed. The URL must stay within 2,048 characters.
 
-export const MAX_WAYPOINTS = 9;
+export const MAX_WAYPOINTS = 3;
 const MAX_URL_LENGTH = 2048;
 /** Shaping points closer than this to a stop, the start or each other are skipped. */
 const MIN_SPACING_M = 80;
@@ -21,7 +22,9 @@ export interface GoogleMapsLink {
 
 /**
  * A walking-directions link that starts and ends at the start point and passes
- * every stop in order. Spare waypoint slots are filled with points sampled
+ * all of the planner's up to three visits in order. Reserve their slots before
+ * adding shaping points. A caller targeting a platform known to support more
+ * waypoints can explicitly request up to nine. Spare slots use points sampled
  * evenly along our route, so Google's own path stays close to ours.
  * Google still chooses its own paths between points, so the result can differ
  * from the checked route; the KML export carries the exact path.
