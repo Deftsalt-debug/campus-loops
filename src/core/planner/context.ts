@@ -63,10 +63,27 @@ export interface RequestContext {
   toStartLowerBound: ShortestPaths;
   /** Rain-aware leg between two nodes; null when unreachable. Cached per request. */
   leg: (from: string, to: string) => Leg | null;
+  /**
+   * A way home from `from` that avoids segments already walked, or null when
+   * none is worth it. Deterministic for a given stop sequence, so shared plans
+   * rebuild to the same route.
+   */
+  loopHome: (from: string, walkedSegments: ReadonlySet<string>) => Leg | null;
+}
+
+export interface LoopOptions {
+  reuseFactor: number;
+  maxDetour: number;
+}
+
+/** Metres of a leg that run along any of the given segments. */
+export function overlapMeters(leg: Leg, segments: ReadonlySet<string>): number {
+  return leg.edges.reduce((sum, e) => sum + (segments.has(e.segmentId) ? e.meters : 0), 0);
 }
 
 export function createRequestContext(
-  args: Omit<RequestContext, 'edgeSeconds' | 'fromStart' | 'toStartLowerBound' | 'leg'>,
+  args: Omit<RequestContext, 'edgeSeconds' | 'fromStart' | 'toStartLowerBound' | 'leg' | 'loopHome'>,
+  loopOptions: LoopOptions = { reuseFactor: 4, maxDetour: 2 },
 ): RequestContext {
   const { graph, model, startNode } = args;
   const secondsCache = new Map<string, number>();
@@ -101,12 +118,39 @@ export function createRequestContext(
     return result;
   };
 
+  const toLeg = (edges: Edge[]): Leg => ({
+    edges,
+    seconds: edges.reduce((sum, e) => sum + edgeSeconds(e), 0),
+    meters: edges.reduce((sum, e) => sum + e.meters, 0),
+  });
+
+  const loops = new Map<string, Leg | null>();
+  const loopHome = (from: string, walked: ReadonlySet<string>): Leg | null => {
+    const quickest = leg(from, startNode);
+    if (!quickest || quickest.edges.length === 0) return null;
+    const reused = overlapMeters(quickest, walked);
+    if (reused === 0) return null; // already a loop
+    const key = `${from}|${[...walked].sort().join(',')}`;
+    if (loops.has(key)) return loops.get(key)!;
+    const penalised = (edge: Edge) => weight(edge) * (walked.has(edge.segmentId) ? loopOptions.reuseFactor : 1);
+    const edges = reconstructPath(dijkstra(graph, from, penalised), startNode);
+    const candidate = edges && toLeg(edges);
+    const worthIt =
+      candidate !== null &&
+      candidate.seconds <= quickest.seconds * loopOptions.maxDetour &&
+      overlapMeters(candidate, walked) < reused;
+    const result = worthIt ? candidate : null;
+    loops.set(key, result);
+    return result;
+  };
+
   return {
     ...args,
     edgeSeconds,
     fromStart: dijkstra(graph, startNode, edgeSeconds),
     toStartLowerBound: dijkstra(graph, startNode, edgeSeconds, { reverse: true }),
     leg,
+    loopHome,
   };
 }
 

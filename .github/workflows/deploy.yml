@@ -24,10 +24,10 @@ jobs:
       VITE_MAP_TILE_ATTRIBUTION: ${{ vars.VITE_MAP_TILE_ATTRIBUTION }}
       VITE_MAP_TILE_MAX_ZOOM: ${{ vars.VITE_MAP_TILE_MAX_ZOOM }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -37,7 +37,7 @@ jobs:
       - run: npm run verify
       # The demo data must still pass structural checks (it is expected to fail --production).
       - run: npm run data:check -- src/data/manipal-demo.json
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: dist
@@ -55,4 +55,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

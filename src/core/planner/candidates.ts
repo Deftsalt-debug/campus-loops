@@ -38,6 +38,8 @@ export interface CandidateOptions {
   occasion: Occasion;
   maxCandidates: number;
   cafesKeptWhenRequired: number;
+  /** Optional places closer than this round trip are skipped: sitting where you started isn't an outing. */
+  minStopRoundTripSec?: number;
 }
 
 /**
@@ -58,6 +60,10 @@ export function selectCandidates(places: Place[], ctx: RequestContext, opts: Can
 
   const ranked = places
     .filter((p) => !ctx.requiredIds.has(p.id) && placeIneligibility(p, ctx, opts.budgetInr, opts.rain) === null)
+    .filter((p) => {
+      const roundTrip = ctx.fromStart.dist.get(p.nodeId)! + ctx.toStartLowerBound.dist.get(p.nodeId)!;
+      return roundTrip >= (opts.minStopRoundTripSec ?? 0);
+    })
     .filter((p) => {
       // Only discard impossible stops: any actual route takes at least the
       // shortest outbound/return times. This keeps closed or distant places

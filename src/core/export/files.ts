@@ -85,3 +85,83 @@ export function planToText(plan: Plan, startName: string, startSec: number): str
   ];
   return lines.filter((l, i) => l !== '' || lines[i - 1] !== '').join('\n').trim() + '\n';
 }
+
+// ---- Calendar (.ics, RFC 5545) ----
+
+/** RFC 5545 TEXT escaping: backslash, semicolon, comma and newlines. */
+function escapeIcsText(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+
+/** Fold content lines at 75 octets (UTF-8), never splitting a character. */
+function foldIcsLine(line: string): string {
+  const encoder = new TextEncoder();
+  const parts: string[] = [];
+  let current = '';
+  let octets = 0;
+  for (const ch of line) {
+    const size = encoder.encode(ch).length;
+    // Continuation lines start with a space, which counts towards their 75 octets.
+    const limit = parts.length === 0 ? 75 : 74;
+    if (octets + size > limit) {
+      parts.push(current);
+      current = '';
+      octets = 0;
+    }
+    current += ch;
+    octets += size;
+  }
+  parts.push(current);
+  return parts.join('\r\n ');
+}
+
+/** 20261002T043000Z */
+function icsUtc(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+
+export interface IcsOptions {
+  startAt: Date;
+  /** DTSTAMP; pass a fixed value in tests. */
+  stamp: Date;
+  startName: string;
+  startCoords: [number, number];
+  /** Link back to this exact plan. */
+  url?: string;
+}
+
+/**
+ * A calendar event for the outing, from leaving the start to getting back
+ * (buffer included), with the itinerary in the description and a reminder
+ * 10 minutes before. Times are UTC, so every calendar app shows local time correctly.
+ */
+export function planToIcs(plan: Plan, opts: IcsOptions): string {
+  const startSec = (((opts.startAt.getTime() / 1000 + 330 * 60) % 86_400) + 86_400) % 86_400;
+  const end = new Date(opts.startAt.getTime() + plan.totalSec * 1000);
+  const description = planToText(plan, opts.startName, startSec) + (opts.url ? `\n${opts.url}\n` : '');
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Campus Loops//Walk planner//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${plan.id.replace(/[^A-Za-z0-9_.:-]/g, '')}-${icsUtc(opts.startAt)}@campus-loops`,
+    `DTSTAMP:${icsUtc(opts.stamp)}`,
+    `DTSTART:${icsUtc(opts.startAt)}`,
+    `DTEND:${icsUtc(end)}`,
+    `SUMMARY:${escapeIcsText(`Walk: ${plan.name}`)}`,
+    `LOCATION:${escapeIcsText(`${opts.startName}, MIT Manipal`)}`,
+    `GEO:${opts.startCoords[0].toFixed(6)};${opts.startCoords[1].toFixed(6)}`,
+    `DESCRIPTION:${escapeIcsText(description.trim())}`,
+    ...(opts.url ? [`URL:${opts.url}`] : []),
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    'TRIGGER:-PT10M',
+    `DESCRIPTION:${escapeIcsText(`Walk from ${opts.startName} in 10 minutes`)}`,
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ];
+  return lines.map(foldIcsLine).join('\r\n') + '\r\n';
+}

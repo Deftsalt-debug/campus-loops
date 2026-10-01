@@ -21,7 +21,7 @@ You choose the occasion (a date, friends, a walking meeting, a study break and m
 | **Return buffer** | Reserve 0–30 minutes within your time limit for delays or getting to class after returning. The default is five minutes, and shared walks preserve custom buffers. Deadlines refresh when you return to a backgrounded tab. |
 | **Real routes** | Dijkstra (hand-written binary heap) runs over 485 imported path segments, represented by 390 nodes and 970 directed arcs, with walking times adjusted for hills using SRTM elevation (6 s per metre climbed). A pruned search tries every order of up to three shortlisted stops. |
 | **Clear failures** | If nothing fits, it tells you why and gives a number it actually calculated: "needs 36 minutes", "cheapest plan is ₹60", "sunset is at 18:20". It never silently relaxes a limit. |
-| **Google Maps** | **Open in Google Maps** gives walking directions through your stops plus shaping points along the route (no API key needed). **KML for Google My Maps** carries the exact line, which then shows up in the Google Maps app under *Saved → Maps*. GPX export works with other apps. |
+| **Google Maps** | **Open in Google Maps** gives walking directions through your stops plus shaping points along the route (no API key needed). **KML for Google My Maps** carries the exact line, which then shows up in the Google Maps app under *Saved → Maps*. GPX export works with other apps. **Add to calendar** saves an .ics event with the itinerary and a 10-minute reminder. |
 | **Sharing** | The request and route identity live in the link's `#fragment`. Opening a shared link re-checks that route against the current time even if its stops are no longer in the recommendation shortlist. If it no longer fits, the app says so instead of swapping in a different route. A dataset-version mismatch requires a fresh plan. |
 | **Saved plans** | Save a plan to return to it on the same device. Opening it checks that route against the current time and data. Remove saved plans whenever you like. |
 | **Modes for conditions** | *Rain mode* prefers covered paths and schedules sheltered stops unless you explicitly require an unsheltered place, which is flagged. *Avoid steps* excludes paths marked with steps. Stair and cover records in the demo have not been surveyed. |
@@ -80,6 +80,8 @@ form ─► plan(dataset, request, now) ─► up to 3 plans ─► list + Leafl
               │         cost = metres / pace + climb × 6 s/m + crossing delay
               ├─ candidates: ≤12 places with known hours and prices that fit the mode
               ├─ Dijkstra legs + pruned depth-first search over 1–3 stops
+              ├─ loop home: if the way back retraces the way out, try a different
+              │            way home (≤2× the quickest return, still within your limits)
               ├─ rank: occasion fit → (rain: cover) → (active: walking) → less retracing → time fit
               └─ diversity: drop same stop set or >80% shared path
 ```
@@ -122,7 +124,7 @@ No accounts, tracking or analytics. Planning runs entirely in your browser. Your
 
 This is a working demo, not a verified pilot. To make it trustworthy, follow Week 1 of [ROADMAP.md](ROADMAP.md): walk the routes, check access, prices and hours, and record cover and steps, until `npm run data:check -- --production` passes. [MANIFEST.md](MANIFEST.md) explains every part of the project in detail.
 
-The current QA checkpoint passes lint, typechecking, 1,527 tests across 17 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
+The current QA checkpoint passes lint, typechecking, 1,588 tests across 18 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
 
 Three useful MIT Manipal additions for a future verified pilot are:
 

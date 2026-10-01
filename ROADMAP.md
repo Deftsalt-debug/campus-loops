@@ -2,6 +2,8 @@
 
 Updated 1 October 2026. **Status:** Weeks 2–5 are implemented. That covers the routing core, the planner, a responsive React + Leaflet interface, eight occasion modes, share links, Google Maps / KML / GPX export and the calibration log. The app is deployed to GitHub Pages on a **demo dataset**: real paths and places from an OpenStreetMap snapshot, with placeholder prices and some placeholder hours. Week 1 (field verification) has **not** been done, so the release must stay labelled a demo. See `MANIFEST.md` for a full guide.
 
+**Third revision, 1 October 2026 (evening):** loop returns (a different way home when the quickest one retraces the way out, at most 2× the quickest return), calendar export, mode defaults that actually work on the campus data, and no "outings" to the place you started from.
+
 **Second revision, 1 October 2026:**
 - Real-geometry demo data imported from OpenStreetMap (`scripts/import-osm.ts`) with SRTM elevation, so map routes follow actual streets
 - Eight occasion modes (date, friends, catch-up, walking meeting, show someone around, solo reset, study break, active walk), each with its own rules, avoided tags, defaults and stop cap

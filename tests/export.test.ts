@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planToGpx, planToKml, planToText } from '../src/core/export/files';
+import { planToGpx, planToIcs, planToKml, planToText } from '../src/core/export/files';
 import { loadDataset } from '../src/core/dataset/load';
 import { googleMapsDirectionsUrl, MAX_WAYPOINTS } from '../src/core/export/googleMaps';
 import { haversineM, planGeometry } from '../src/core/geo';
@@ -212,5 +212,53 @@ describe('share links', () => {
     [`#v=1&${'x'.repeat(3000)}`, 'too long'],
   ])('rejects a malformed or hostile link (%s)', (hash, _label) => {
     expect(decodeShare(hash).ok).toBe(false);
+  });
+});
+
+describe('calendar export (.ics)', () => {
+  const startAt = ist('2026-10-02', '16:30');
+  const stamp = new Date('2026-10-01T12:00:00Z');
+  const ics = planToIcs(p, { startAt, stamp, startName: 'Gate A', startCoords: route.start, url: 'https://example.test/#v=1&id=x' });
+  // Undo RFC 5545 line folding to read whole properties.
+  const unfolded = ics.replace(/\r\n /g, '');
+  const prop = (name: string) => unfolded.split('\r\n').find((l) => l.startsWith(`${name}:`))?.slice(name.length + 1);
+
+  it('is a well-formed calendar with one event and a reminder', () => {
+    expect(ics.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n')).toBe(true);
+    expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
+    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+    expect(unfolded).toContain('BEGIN:VALARM\r\nACTION:DISPLAY\r\nTRIGGER:-PT10M');
+    // Only CRLF line endings, never a bare LF.
+    expect(ics.replace(/\r\n/g, '')).not.toContain('\n');
+  });
+
+  it('runs from leaving to getting back, in UTC', () => {
+    expect(prop('DTSTART')).toBe('20261002T110000Z'); // 16:30 IST
+    const end = new Date(startAt.getTime() + p.totalSec * 1000);
+    expect(prop('DTEND')).toBe(end.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''));
+    expect(prop('DTSTAMP')).toBe('20261001T120000Z');
+    expect(prop('UID')).toMatch(/^[A-Za-z0-9_.:-]+-20261002T110000Z@campus-loops$/);
+  });
+
+  it('carries the itinerary with clock times and the link', () => {
+    const description = prop('DESCRIPTION')!;
+    expect(description).toContain('16:30  Leave Gate A');
+    expect(description).toContain('https://example.test/#v=1&id=x');
+    expect(prop('LOCATION')).toBe('Gate A\\, MIT Manipal');
+    expect(prop('GEO')).toBe(`${route.start[0].toFixed(6)};${route.start[1].toFixed(6)}`);
+  });
+
+  it('escapes text so commas, semicolons and backslashes cannot break fields', () => {
+    const tricky = { ...p, name: 'Tea; talk, and a \\ backslash' };
+    const out = planToIcs(tricky, { startAt, stamp, startName: 'Gate A', startCoords: route.start }).replace(/\r\n /g, '');
+    expect(out).toContain('SUMMARY:Walk: Tea\\; talk\\, and a \\\\ backslash');
+  });
+
+  it('folds long lines at 75 octets without splitting multi-byte characters', () => {
+    const long = { ...p, name: `${'₹'.repeat(60)} long walk` };
+    const out = planToIcs(long, { startAt, stamp, startName: 'Gate A', startCoords: route.start });
+    const encoder = new TextEncoder();
+    for (const line of out.split('\r\n')) expect(encoder.encode(line).length).toBeLessThanOrEqual(75);
+    expect(out.replace(/\r\n /g, '')).toContain(`SUMMARY:Walk: ${'₹'.repeat(60)} long walk`);
   });
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { planToGpx, planToKml, planToText } from '../core/export/files'
+import { planToGpx, planToIcs, planToKml, planToText } from '../core/export/files'
 import { googleMapsDirectionsUrl } from '../core/export/googleMaps'
 import { planGeometry } from '../core/geo'
 import type { Dataset, Plan } from '../core/types'
@@ -13,6 +13,8 @@ interface Props {
   dataset: Dataset
   selected: boolean
   startSec: number
+  /** The instant the walk starts (now, or the preview time), for calendar export. */
+  startAt: Date
   pace: 'relaxed' | 'normal'
   shareUrl: string
   onSelect: () => void
@@ -23,7 +25,7 @@ interface Props {
   saved: boolean
 }
 
-export function PlanCard({ plan, index, dataset, selected, startSec, pace, shareUrl, onSelect, onHover, notify, onLogged, onSave, saved }: Props) {
+export function PlanCard({ plan, index, dataset, selected, startSec, startAt, pace, shareUrl, onSelect, onHover, notify, onLogged, onSave, saved }: Props) {
   const startName = dataset.starts.find((s) => s.nodeId === plan.startNodeId)?.name ?? 'Start'
   const headingId = `plan-${index}-title`
   const stopCount = plan.visits.filter((v) => v.dwellSec > 0).length
@@ -57,7 +59,7 @@ export function PlanCard({ plan, index, dataset, selected, startSec, pace, share
         </div>
       </div>
       {selected && (
-        <PlanDetails key={plan.id} plan={plan} dataset={dataset} startName={startName} startSec={startSec} pace={pace} shareUrl={shareUrl} notify={notify} onLogged={onLogged} onSave={onSave} saved={saved} />
+        <PlanDetails key={plan.id} plan={plan} dataset={dataset} startName={startName} startSec={startSec} startAt={startAt} pace={pace} shareUrl={shareUrl} notify={notify} onLogged={onLogged} onSave={onSave} saved={saved} />
       )}
     </article>
   )
@@ -68,6 +70,7 @@ function PlanDetails({
   dataset,
   startName,
   startSec,
+  startAt,
   pace,
   shareUrl,
   notify,
@@ -79,6 +82,7 @@ function PlanDetails({
   dataset: Dataset
   startName: string
   startSec: number
+  startAt: Date
   pace: 'relaxed' | 'normal'
   shareUrl: string
   notify: (message: string) => void
@@ -207,6 +211,20 @@ function PlanDetails({
           onClick={() => download(`${file}.gpx`, 'application/gpx+xml', planToGpx(plan, route, startName, dataset.licence))}
         >
           GPX
+        </button>
+        <button
+          type="button"
+          className="btn ghost"
+          onPointerDown={ripple}
+          onClick={() =>
+            download(
+              `${file}.ics`,
+              'text/calendar',
+              planToIcs(plan, { startAt, stamp: new Date(), startName, startCoords: route.start, url: shareUrl }),
+            )
+          }
+        >
+          Add to calendar
         </button>
       </div>
       <p className="hint">

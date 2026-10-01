@@ -32,7 +32,23 @@ export interface SearchResult {
  * - requirements: more required stops are missing than slots remain
  * With 12 candidates this explores at most 1,464 sequences, usually far fewer.
  */
-export function searchGenerated(ctx: RequestContext, candidates: Place[], limits: Limits, onlyPlanId?: string): SearchResult {
+export interface SearchOptions {
+  /** Rebuild exactly this plan (from a shared link) instead of searching freely. */
+  onlyPlanId?: string;
+  /** Also build "different way home" variants. Off for failure diagnostics, which only need minimums. */
+  loops?: boolean;
+}
+
+/** Generated plan ids: g:a.b (quickest way home) or l:a.b (loop home). */
+export function generatedPlanId(kind: 'g' | 'l', placeIds: string[]): string {
+  return `${kind}:${placeIds.join('.')}`;
+}
+
+export function searchGenerated(ctx: RequestContext, candidates: Place[], limits: Limits, options: SearchOptions = {}): SearchResult {
+  const { onlyPlanId, loops = true } = options;
+  // The stop sequence and return kind a rebuild is restricted to.
+  const onlyKind = onlyPlanId?.slice(0, 1);
+  const onlyStops = onlyPlanId?.slice(2);
   const rejections: Record<RejectReason, number> = { time: 0, budget: 0, hours: 0, unreachable: 0, requirements: 0 };
   const itineraries: Itinerary[] = [];
   let evaluated = 0;
@@ -58,16 +74,26 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
       const home = ctx.leg(at, ctx.startNode);
       if (!home) {
         rejections.unreachable++;
-      } else if (missingRequired() === 0 && (!onlyPlanId || `g:${visits.map((v) => v.place.id).join('.')}` === onlyPlanId)) {
+      } else if (missingRequired() === 0 && (!onlyStops || visits.map((v) => v.place.id).join('.') === onlyStops)) {
         evaluated++;
         // Check the same total the plan will report, so rounding can't disagree.
-        const itinerary = buildItinerary([...legs, home], [...visits], spendLow, spendHigh, ctx);
-        if (itinerary.totalSec > limits.availableSec) {
+        const quickest = buildItinerary('g', [...legs, home], [...visits], spendLow, spendHigh, ctx);
+        if (quickest.totalSec > limits.availableSec) {
           rejections.time++;
-        } else if (itinerary.edges.some((edge) => edge.meters > 0)) {
+        } else if (quickest.edges.some((edge) => edge.meters > 0)) {
           // A stop at the start can be part of a walk, but staying there is
           // not an outing. Keep searching so later stops can add a real leg.
-          itineraries.push(itinerary);
+          if (!onlyKind || onlyKind === 'g') itineraries.push(quickest);
+          // If the quickest way home retraces the way out, also offer a real loop.
+          // A loop is never quicker, so only feasible quickest plans can have one.
+          if (loops && (!onlyKind || onlyKind === 'l')) {
+            const walked = new Set(legs.flatMap((l) => l.edges.map((e) => e.segmentId)));
+            const loopLeg = ctx.loopHome(at, walked);
+            if (loopLeg) {
+              const loop = buildItinerary('l', [...legs, loopLeg], [...visits], spendLow, spendHigh, ctx);
+              if (loop.totalSec <= limits.availableSec) itineraries.push(loop);
+            }
+          }
         }
       }
     }
@@ -82,8 +108,8 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
       if (onlyPlanId) {
         // Rebuilding a saved route must not search every permutation in the
         // dataset, but its stops must survive the recommendation shortlist.
-        const prefix = `g:${[...visits.map((v) => v.place.id), place.id].join('.')}`;
-        if (prefix !== onlyPlanId && !onlyPlanId.startsWith(`${prefix}.`)) continue;
+        const prefix = [...visits.map((v) => v.place.id), place.id].join('.');
+        if (prefix !== onlyStops && !onlyStops!.startsWith(`${prefix}.`)) continue;
       }
       const leg = ctx.leg(at, place.nodeId);
       if (!leg) {
@@ -127,6 +153,7 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
 }
 
 function buildItinerary(
+  kind: 'g' | 'l',
   legs: Leg[],
   visits: ScheduledVisit[],
   spendLowInr: number,
@@ -137,7 +164,7 @@ function buildItinerary(
   const walkingSec = legs.reduce((sum, l) => sum + l.seconds, 0);
   const dwellSec = visits.reduce((sum, v) => sum + v.dwellSec, 0);
   return {
-    id: `g:${visits.map((v) => v.place.id).join('.')}`,
+    id: generatedPlanId(kind, visits.map((v) => v.place.id)),
     kind: 'generated',
     walkTags: [],
     edges,

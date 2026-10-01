@@ -340,6 +340,7 @@ export default function App() {
                   dataset={dataset}
                   selected={p.id === selected?.id}
                   startSec={startSec ?? 0}
+                  startAt={now}
                   pace={deferredForm?.pace ?? form.pace}
                   shareUrl={shareUrl}
                   onSelect={() => onSelect(p.id)}

@@ -32,7 +32,7 @@ This is everything you need to know about the project: what was built, how to ru
 cd ~/Desktop/Projects/LoopCampus
 npm install          # first time only
 npm run dev          # opens on http://localhost:5173
-npm run verify       # lint + typecheck + ~1,300 tests + production build (run before every push)
+npm run verify       # lint + typecheck + ~1,600 tests + production build (run before every push)
 ```
 
 At night the planner refuses to plan, because it's daylight-only and checks sunset. Click **Preview tomorrow 10:00** in the notice, or set *More options → Plan as if it's…*.
@@ -59,10 +59,10 @@ Other commands:
    | Date | scenic/view/nature; dessert/cozy/coffee | quick canteens | 60 min · ₹300 · relaxed · café on | 3 |
    | Friends | group/lively; food | – | 60 min · ₹200 · normal | 3 |
    | Catch-up | quiet/conversation; somewhere to sit | lively | 45 min · ₹150 · relaxed | 3 |
-   | Walking meeting | quiet/conversation/wifi; seating/coffee | lively, group | 30 min · free · normal | **2** |
+   | Walking meeting | quiet/conversation/wifi; seating/coffee | lively, group | 45 min · free · normal | **2** |
    | Show someone around | landmarks/iconic; photo/scenic | – | 90 min · ₹200 · relaxed | 3 |
-   | Solo reset | quiet/nature; scenic/shade/seating | lively, group | 30 min · free · relaxed | 3 |
-   | Study break | quick/snacks; coffee/seating | – | 30 min · ₹100 · normal · café on | **2** |
+   | Solo reset | quiet/nature; scenic/shade/seating | lively, group | 45 min · free · relaxed | 3 |
+   | Study break | quick/snacks; coffee/seating | – | 45 min · ₹200 · normal · café on | **2** |
    | Active walk | ranks by **time spent walking** | – | 45 min · free · normal | **2** |
 
    Modes are defined in `src/core/planner/occasions.ts`. Add or tweak one there; each needs a label, a blurb, up to two rules, avoided tags and defaults.
@@ -70,7 +70,7 @@ Other commands:
 3. **Time** (30–90 min), **budget per person**, up to **two must-visit places**, and **Include a café**.
 4. **More options:** pace (relaxed 1.0 m/s, normal 1.2 m/s), **Back by** (e.g. a hostel in-time), **Avoid steps**, **Rain mode**, **Plan as if it's…** (preview another time).
 5. **Results** update live: up to 3 different plans. Hover a card to preview its route on the map, and click to select it. The selected card shows a timeline with clock times, warnings (placeholder prices or hours, steps, old data), and actions.
-6. **Actions:** Open in Google Maps · Share (system share sheet or copy link) · Copy text · KML for Google My Maps · GPX · *Walked it? Log the real time*.
+6. **Actions:** Open in Google Maps · Share (system share sheet or copy link) · Copy text · KML for Google My Maps · GPX · **Add to calendar** (.ics with the itinerary and a 10-minute reminder) · *Walked it? Log the real time*.
 7. On a phone, use the **List / Map** switch above the results.
 
 ---
@@ -95,6 +95,7 @@ Other commands:
 2. **Graph**: only allowed edges, with stepped edges dropped if Avoid steps is on. Edge time = `metres / pace + metres climbed × 6 s + crossing delay`. Climb comes from SRTM elevation, so uphill is slower than downhill on the same street.
 3. **Candidates**: up to 12 places. Places with unknown prices or hours, places closed today, unreachable places, places over budget, and (in rain) unsheltered stops are excluded. They're ranked by the occasion rules.
 4. **Search**: Dijkstra between stops (hand-written binary heap), then a depth-first search over every order of 1–3 stops. Branches are pruned the moment one can't fit, using the shortest possible way home as a lower bound, so pruning never removes a valid plan.
+4b. **Loop home**: if the quickest way back retraces the way out, the planner also tries a *different way home*. It runs Dijkstra with a ×4 cost on segments already walked, and accepts the result only if it retraces less and takes at most **2×** the quickest return. Both versions are judged under the same hard limits; ranking prefers the loop, and the duplicate rule shows only one. Loop plans have ids starting `l:` (quickest-return plans start `g:`). The rule depends only on the stops, so a shared loop always rebuilds to the same route. Across the demo's six starts and eight modes this cut out-and-back suggestions from about 80% to 40%. The rest are mostly dead-end roads, where no other way home exists.
 5. **Ranking**: occasion fit → (rain: covered share) → (Active: walking share) → less retracing → time fit (anything using at least half the time counts as a good fit; no cramming).
 6. **Diversity**: a plan is dropped if it has the same stops as one already shown, or shares more than 80% of its path. Showing one plan is fine; the list is never padded.
 7. **When nothing fits**: the planner re-runs with one limit lifted only to *report* numbers, e.g. "needs 36 minutes", "cheapest is ₹60". It never relaxes a limit for you.
@@ -147,7 +148,7 @@ src/storage/         calibrationLog.ts, savedPlans.ts (localStorage, fail safely
 src/data/            manipal-demo.json, fixtures/pilot-fixture.json
 scripts/             import-osm.ts, osm-rules.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
 data/osm/            raw OSM snapshot, provenance + elevation cache (ODbL)
-tests/               17 files, 1,527 tests at the current QA checkpoint
+tests/               18 files, 1,588 tests at the current QA checkpoint
 .github/workflows/   deploy.yml (verify → build → GitHub Pages)
 ROADMAP.md           product plan, decisions, weekly checklists
 ```
@@ -171,6 +172,18 @@ Current automated and browser results are recorded in [RELEASE.md](RELEASE.md). 
 - Checked: desktop dark mode, phone (375 px) light mode with no horizontal scroll, List/Map tabs, shared link → "Showing a shared plan", a bogus plan id → "no longer fits" + *Plan again*, after-sunset → preview buttons, Google Maps link opening the right walking route, and the production build's assets loading under the `/campus-loops/` sub-path.
 
 ---
+
+### Third review — 1 October 2026 (evening)
+
+I re-checked the whole repository, including four commits made in between (saved walks, configurable tiles, input-shape validation, OSM import rules, an error boundary, a web manifest). Baseline: 1,527 tests green, CI green, zero audit findings. A content sweep of 144 real requests (6 starts × 8 modes × 3 times of day) found three product problems, all now fixed with regression tests:
+
+- **Mode defaults that never worked.** Study break (30 min, ₹100, café on) failed 18 of 18 times; walking meeting and solo reset failed from some starts by 1–7 minutes. New defaults: meeting 45 min, solo 45 min, study break 45 min at ₹200. A test now requires every mode's defaults to find a walk from every start at midday. The one documented exception is a study break starting *at* Food Court 2, where the nearest food is the place you're standing in.
+- **"Loops" that weren't.** 80% of suggestions were out-and-back. The new *loop home* step (§5, 4b) brings that to 40%. Worst-case planning time stayed at about 37 ms.
+- **Pointless stops.** Starting at Student Plaza could suggest "walk to Student Plaza". Optional stops with a round trip under 2 minutes are now skipped; a must-visit still works.
+
+Also added **Add to calendar** (.ics, RFC 5545: UTC times, escaping, 75-octet line folding, a 10-minute reminder), and moved CI to the Node 24 versions of the GitHub actions (checkout v7, setup-node v7, upload-pages-artifact v5, deploy-pages v5).
+
+Browser QA: the loop route line starts and ends on the start pin and passes through the stop pin (0 px error, measured in the DOM); every mode's defaults return walks in the UI; mode keyboard navigation wraps; no unlabeled controls, duplicate ids or console errors; no horizontal overflow and no small touch targets at 360 px; a reloaded shared link reopens as "checked again just now".
 
 ## 9. Deployment
 
@@ -198,6 +211,7 @@ Current automated and browser results are recorded in [RELEASE.md](RELEASE.md). 
 4. Places are anchored to the nearest path point, not their real entrance.
 5. There's no road-crossing delay yet (`delaySeconds` is 0 on all demo edges).
 6. The Google Maps link approximates our route; the KML is exact.
+6b. About 40% of suggestions are still out-and-back, because many campus roads are dead ends in the map data and no reasonable different way home exists.
 7. Planning is limited to today and 30–90 minutes; there's no future-date planning beyond the preview tool.
 8. There are no saved favourites yet. The share link (and the address bar, which always holds it) works as a bookmark.
 

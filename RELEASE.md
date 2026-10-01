@@ -42,7 +42,15 @@ The current demo is expected to fail this last check. Passing structural validat
 
 Revert the faulty change through a pull request or restore the last known good commit on `main` using the team's normal Git process. The workflow rebuilds and publishes that version after verification. Saved plans reopen against the deployed dataset and current time; a route that no longer fits shows a failure instead of silently substituting another walk. Local data is not a backup and is not migrated between devices or domains.
 
-## Current automated verification — 1 October 2026
+## Third review — loops, defaults, calendar (1 October 2026, evening)
+
+- `npm run verify`: **1,588 tests pass across 18 files**; lint, typecheck and the production build pass. Audit: zero vulnerabilities.
+- Content sweep (6 starts × 8 modes × 3 times): every mode's defaults now return walks from every start at midday, except the documented study-break-from-Food-Court-2 case. Out-and-back suggestions fell from about 80% to 40% with *loop home*. No request took over 40 ms.
+- Loop plans (`l:` ids) rebuild identically from share links. That's covered by the 1,152-request invariant matrix and dedicated tests, including the loop being refused once it no longer fits.
+- Calendar export follows RFC 5545 (CRLF, escaping, folding, UTC), with tests for each. A shell-escaping slip in the semicolon escape was caught by lint and is pinned by a test.
+- In-app browser: the loop line meets the start and stop pins exactly; keyboard, labelling, 360 px layout and shared-link reload all checked. No console errors.
+
+## Earlier automated verification — 1 October 2026 (before the third review)
 
 - `npm run verify`: lint and TypeScript checks pass, **1,527 tests pass across 17 files**, and the production build passes. The dependency audit reports **zero vulnerabilities**.
 - Structural validation of the regenerated Manipal dataset reports **zero errors**. Production validation correctly rejects the fixture marker and **33 placeholder hours/price values**; the routes are not a verified production pilot.
@@ -53,7 +61,7 @@ Revert the faulty change through a pull request or restore the last known good c
 - Importer tests cover pedestrian access precedence, forward and reverse access, conditional restrictions, pedestrian exceptions to one-way tags, private barriers, weekday mapping, invalid/overnight/overlapping hours, and explicit closures. Unsupported supplied hours remain unavailable; only missing hours use labelled demo assumptions. The snapshot checksum is tied to the dataset version.
 - Map configuration tests reject unsupported or incomplete placeholders before map initialization. The map includes a route refit control; occasion selection supports Home/End, and calibration instructions distinguish walking time from stops and buffers without promising automatic adjustment.
 
-## Current browser verification — 1 October 2026
+## Earlier browser verification — 1 October 2026 (before the third review)
 
 Checked the built app with the six-start dataset using the in-app browser, separately from the development server:
 

@@ -141,7 +141,7 @@ function run(
     avoidSteps: request.avoidSteps,
     maxStops,
     dwellSec: (p: Place) => (Object.hasOwn(overrides, p.id) ? overrides[p.id] : p.dwellDefaultMin) * 60,
-  });
+  }, { reuseFactor: config.loopReuseFactor, maxDetour: config.loopMaxDetour });
 
   for (const p of required) {
     const reason = placeIneligibility(p, ctx, Infinity, false);
@@ -195,6 +195,7 @@ function findItineraries(
   limits: Limits,
   config: PlannerConfig,
   onlyPlanId: string | null = null,
+  loops = true,
 ): Itinerary[] {
   const candidates = selectCandidates(dataset.places, ctx, {
     budgetInr: limits.budgetInr,
@@ -205,10 +206,12 @@ function findItineraries(
     // stops happen to rank in the recommendation shortlist right now.
     maxCandidates: onlyPlanId !== null ? dataset.places.length : config.maxCandidates,
     cafesKeptWhenRequired: config.cafesKeptWhenRequired,
+    minStopRoundTripSec: config.minStopRoundTripSec,
   });
-  const generated = onlyPlanId !== null && !onlyPlanId.startsWith('g:')
-    ? []
-    : searchGenerated(ctx, candidates, limits, onlyPlanId ?? undefined).itineraries;
+  const isGenerated = onlyPlanId === null || onlyPlanId.startsWith('g:') || onlyPlanId.startsWith('l:');
+  const generated = isGenerated
+    ? searchGenerated(ctx, candidates, limits, { onlyPlanId: onlyPlanId ?? undefined, loops }).itineraries
+    : [];
   const curated = dataset.curatedWalks
     .filter((w) => onlyPlanId === null || `c:${w.id}` === onlyPlanId)
     .map((w) => evaluateCurated(w, places, ctx, limits, request.rain))
@@ -229,7 +232,8 @@ function diagnose(
   config: PlannerConfig,
   context: PlanContext,
 ): Blocker {
-  const run = (l: Limits) => findItineraries(dataset, places, ctx, request, l, config);
+  // Minimums only need the quickest way home, so skip loop variants here.
+  const run = (l: Limits) => findItineraries(dataset, places, ctx, request, l, config, null, false);
   const availableMin = Math.floor(limits.availableSec / 60);
   const deadlineText: Record<DeadlineReason, string> = {
     duration: `${request.durationMin} minutes`,

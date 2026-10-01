@@ -14,7 +14,7 @@ const DECIMAL = /^\d+(?:\.\d+)?$/;
 
 function isPlanIdentifier(id: string): boolean {
   if (id.startsWith('c:')) return isShareIdentifier(id.slice(2));
-  if (!id.startsWith('g:')) return false;
+  if (!id.startsWith('g:') && !id.startsWith('l:')) return false;
   const stops = id.slice(2).split('.');
   return stops.length <= DEFAULT_CONFIG.maxStops && stops.every(isPlaceIdentifier);
 }
