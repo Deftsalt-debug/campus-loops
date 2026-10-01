@@ -220,7 +220,7 @@ function PlanDetails({
             download(
               `${file}.ics`,
               'text/calendar',
-              planToIcs(plan, { startAt, stamp: new Date(), startName, startCoords: route.start, url: shareUrl }),
+              planToIcs(plan, { startAt, stamp: new Date(), startName, startCoords: route.start, url: shareUrl, datasetVersion: dataset.datasetVersion }),
             )
           }
         >

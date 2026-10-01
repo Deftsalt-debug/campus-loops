@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { fromIstInput, istInputValue } from '../src/ui/format'
 import { initialForm, sharedForm, toRequest } from '../src/ui/planningState'
-import { findCampusPlaces, toggleRequiredPlace, unconfirmedPlaceDetails } from '../src/ui/campusPlaces'
-import { plan } from '../src/core/planner/plan'
+import { findCampusPlaces, stopTimeError, toggleRequiredPlace, unconfirmedPlaceDetails, updateStopTime } from '../src/ui/campusPlaces'
+import { plan, rebuildPlan } from '../src/core/planner/plan'
+import { decodeShare, encodeShare } from '../src/core/share'
 import { fixture, ist, tinyDataset, twoWay } from './helpers'
 
 describe('shared planning state', () => {
@@ -78,5 +79,80 @@ describe('IST preview input', () => {
   })
   it.each(['', '2026-02-30T10:00', '2026-13-01T10:00', '2026-10-01T24:00', '2026-10-01T10:60', '2026-10-01', '2026-10-01T10:00Z'])('rejects invalid wall-clock value %s', (value) => {
     expect(fromIstInput(value)).toBeNull()
+  })
+})
+
+describe('custom stop times', () => {
+  const ds = () => tinyDataset(['gate', 'lawn'], twoWay('walk', 'gate', 'lawn', 360), [{ id: 'lawn', name: 'Library lawn', nodeId: 'lawn', dwellDefaultMin: 10 }])
+  const now = ist('2026-10-01', '10:00')
+  const state = () => ({ ...initialForm(ds()), durationMin: 30, requireCafe: false, pace: 'normal' as const, backBy: '10:30', required: ['lawn', ''] as [string, string], bufferMin: 5 })
+
+  it('changes the actual stop and return time, rejects a missed class deadline, and restores the dataset default', () => {
+    const original = plan(ds(), toRequest(state()), now).plans[0]
+    expect(original.totalSec).toBe(25 * 60) // 5 out + 10 stop + 5 home + 5 buffer
+    let dwellOverridesMin = updateStopTime(undefined, 'lawn', '15')
+    const longer = plan(ds(), toRequest({ ...state(), dwellOverridesMin }), now).plans[0]
+    expect(longer.visits[0].dwellSec).toBe(15 * 60)
+    expect(longer.totalSec).toBe(30 * 60)
+    dwellOverridesMin = updateStopTime(dwellOverridesMin, 'lawn', '15.5')
+    const tooLong = plan(ds(), toRequest({ ...state(), dwellOverridesMin }), now)
+    expect(tooLong.plans).toEqual([])
+    expect(tooLong.blockers[0].code).toBe('NOT_ENOUGH_TIME')
+    dwellOverridesMin = updateStopTime(dwellOverridesMin, 'lawn', null)
+    expect(dwellOverridesMin).toBeUndefined()
+    expect(plan(ds(), toRequest({ ...state(), dwellOverridesMin }), now).plans[0]).toEqual(original)
+  })
+
+  it('keeps every stop-time customization through sharing and rebuilding the exact walk', () => {
+    const dataset = ds()
+    const form = { ...state(), dwellOverridesMin: updateStopTime(undefined, 'lawn', '7.5') }
+    const request = toRequest(form)
+    const selected = plan(dataset, request, now).plans[0]
+    expect(selected.totalSec).toBe(22.5 * 60)
+    const encoded = encodeShare({ datasetVersion: dataset.datasetVersion, request, planId: selected.id, at: now.toISOString() })
+    const decoded = decodeShare(encoded)
+    expect(decoded.ok).toBe(true)
+    if (!decoded.ok) throw new Error(decoded.reason)
+    const restored = sharedForm(dataset, decoded.shared)
+    expect(toRequest(restored)).toEqual(request)
+    expect(rebuildPlan(dataset, toRequest(restored), now, selected.id).plans[0]).toEqual(selected)
+  })
+
+  it('edits and resets only the chosen stop, preserving shared overrides after changing must-visits', () => {
+    const original = { lawn: 7.5, food: 20 }
+    const updated = updateStopTime(original, 'lawn', '0')
+    expect(updated).toEqual({ lawn: 0, food: 20 })
+    expect(original).toEqual({ lawn: 7.5, food: 20 })
+    const form = { ...state(), required: toggleRequiredPlace(state().required, 'lawn'), dwellOverridesMin: updated }
+    expect(toRequest(form).dwellOverridesMin).toEqual({ lawn: 0, food: 20 })
+    expect(updateStopTime(updated, 'lawn', null)).toEqual({ food: 20 })
+    expect(updateStopTime(updated, 'missing', null)).toEqual(updated)
+  })
+
+  it.each(['', ' ', '-1', '121', 'NaN', 'Infinity', 'invalid'])('blocks planning for invalid input %j instead of retaining an earlier valid value', (value) => {
+    const dwellOverridesMin = updateStopTime({ lawn: 10 }, 'lawn', value)
+    expect(stopTimeError(dwellOverridesMin!.lawn)).not.toBeNull()
+    const result = plan(ds(), toRequest({ ...state(), dwellOverridesMin }), now)
+    expect(result.plans).toEqual([])
+    expect(result.blockers[0].code).toBe('INVALID_INPUT')
+    expect(plan(ds(), toRequest({ ...state(), dwellOverridesMin: updateStopTime(dwellOverridesMin, 'lawn', null) }), now).plans).toHaveLength(1)
+  })
+
+  it('permits a zero-minute pass-by while preserving the walking and return buffer', () => {
+    const walk = plan(ds(), toRequest({ ...state(), dwellOverridesMin: updateStopTime(undefined, 'lawn', '0') }), now).plans[0]
+    expect(walk.visits[0].dwellSec).toBe(0)
+    expect(walk.walkingSec).toBe(10 * 60)
+    expect(walk.bufferSec).toBe(5 * 60)
+    expect(walk.totalSec).toBe(15 * 60)
+    expect(stopTimeError(0)).toBeNull()
+    expect(stopTimeError(120)).toBeNull()
+  })
+
+  it('keeps unusual valid place IDs as own properties without changing the override prototype', () => {
+    const overrides = updateStopTime(undefined, '__proto__', '7.5')!
+    expect(Object.hasOwn(overrides, '__proto__')).toBe(true)
+    expect(Object.getPrototypeOf(overrides)).toBe(Object.prototype)
+    expect(overrides.__proto__).toBe(7.5)
+    expect(updateStopTime(overrides, '__proto__', null)).toBeUndefined()
   })
 })

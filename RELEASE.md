@@ -42,6 +42,18 @@ The current demo is expected to fail this last check. Passing structural validat
 
 Revert the faulty change through a pull request or restore the last known good commit on `main` using the team's normal Git process. The workflow rebuilds and publishes that version after verification. Saved plans reopen against the deployed dataset and current time; a route that no longer fits shows a failure instead of silently substituting another walk. Local data is not a backup and is not migrated between devices or domains.
 
+## Fourth review — student tools and optimization (2 October 2026)
+
+- Added editable 0–120 minute stops, a route comparison table, saved-walk JSON backup/restore, and a local campus field notebook. Notes are explicitly unverified observations and never change the planner automatically.
+- Two QA passes: focused feature tests plus independent cross-review, then the full suite and browser scenarios against development and separately built production pages at `/campus-loops/`. **1,693 tests pass across 20 files**; lint, TypeScript and the production build pass. Dependency audit: **zero vulnerabilities**. Dataset validation: zero errors; the fixture flag and 33 placeholder price/hour values remain visible warnings.
+- Fixed café pass-bys counting as café visits or purchases, a rain-mode false negative when a less sheltered loop returns faster, calendar-event collisions across starts/map versions, malformed restored links changing the page path, readable notebook overflow being discarded, and a comparison-table overflow at 320 px. Regressions cover core rules, atomic restore, storage failures, overflow preservation and calendar identity.
+- Browser scenarios: fractional/zero/blank/over-limit stop times; reset and preserved optional overrides; comparison selection updating the route; backup merge and duplicate counts; invalid backup rejection preserving saved records; restoring a custom-time route; notebook save/reload/delete; saved-walk and notebook changes propagating to another tab. Responsive checks at 320×740, 844×390 and 1280×900 show no page overflow. The comparison table scrolls with the keyboard, mobile tabs work, and repeated map zoom/remounts retain one map with no console errors.
+- A repeated 96-request campus benchmark (288 measured samples after warmup) improved from median **1.71 ms**, p95 **17.02 ms**, total **993.22 ms** to median **1.32 ms**, p95 **8.60 ms**, total **587.72 ms** on this development machine. The full result digest stayed `303b108c961c5ce3764c5ee0979e2cafb5ac45c006e01b8d9ae5039971bf5b3b`. Targeted loop-return searches stop when the destination is settled; edge weights are cached only within each request. Run `npm run benchmark` to repeat; these are desktop measurements, not physical-phone results.
+- Compressed production assets: main JavaScript **107.64 KB**, app CSS **5.02 KB**, demo data **41.87 KB**, separately loaded map JavaScript **43.37 KB**. No dependencies were added.
+- Backup serialization and real file-chooser imports passed. The in-app browser reported the export action but did not expose its download event; actual downloaded-file handling and importing ICS into an external calendar remain target-browser checks. Screenshots and disposable import fixtures are in ignored `out/next-features-qa/`.
+
+The release remains a public demo until campus paths, entrances, steps, cover, prices and hours have been checked locally. The notebook makes that field work easier without promoting observations to trusted data.
+
 ## Third review — loops, defaults, calendar (1 October 2026, evening)
 
 - `npm run verify`: **1,588 tests pass across 18 files**; lint, typecheck and the production build pass. Audit: zero vulnerabilities.

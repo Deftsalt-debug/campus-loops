@@ -1,0 +1,28 @@
+.stop-times {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.stop-times legend {
+  padding: 0 5px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.stop-time {
+  min-width: 0;
+}
+
+.stop-time > label {
+  overflow-wrap: anywhere;
+}
+
+.stop-time .btn {
+  padding: 0 10px;
+  font-size: 0.8rem;
+}

@@ -1,5 +1,7 @@
 # Campus Loops MVP roadmap
 
+**Fourth revision, 2 October 2026:** editable stop durations, a walk comparison table, validated saved-walk backup/restore, and a local field notebook are implemented. The notebook supports collecting evidence for Week 1; its observations require review before changing route data. Targeted loop routing reduces search work while preserving the benchmark's route results. Rain-return feasibility, café pass-by rules and calendar identity have regression coverage.
+
 Updated 1 October 2026. **Status:** Weeks 2–5 are implemented. That covers the routing core, the planner, a responsive React + Leaflet interface, eight occasion modes, share links, Google Maps / KML / GPX export and the calibration log. The app is deployed to GitHub Pages on a **demo dataset**: real paths and places from an OpenStreetMap snapshot, with placeholder prices and some placeholder hours. Week 1 (field verification) has **not** been done, so the release must stay labelled a demo. See `MANIFEST.md` for a full guide.
 
 **Third revision, 1 October 2026 (evening):** loop returns (a different way home when the quickest one retraces the way out, at most 2× the quickest return), calendar export, mode defaults that actually work on the campus data, and no "outings" to the place you started from.

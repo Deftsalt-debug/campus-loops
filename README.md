@@ -19,11 +19,14 @@ You choose the occasion (a date, friends, a walking meeting, a study break and m
 | **Campus stop finder** | Search the catalogue by place name or interests such as quiet, food or coffee, filter by category, and add or remove up to two must-visits. Places with unknown prices or hours remain discoverable but cannot be added for planning. |
 | **Honest limits** | Plans enforce your time limit, budget, required stops and the dataset's access rules. They end before the estimated sunset, calculated on your device using NOAA equations, and before your optional *back-by* time, e.g. a hostel in-time. |
 | **Return buffer** | Reserve 0–30 minutes within your time limit for delays or getting to class after returning. The default is five minutes, and shared walks preserve custom buffers. Deadlines refresh when you return to a backgrounded tab. |
+| **Time at your stops** | Set 0–120 minutes for selected stops, including fractional minutes, or reset to the dataset default. Zero means a free pass-by and does not satisfy a café requirement. Shared custom times remain editable. |
+| **Walk comparison** | Compare total time, walking distance, stops, return buffer, spare time, cost and retracing; select a walk directly from the table. |
 | **Real routes** | Dijkstra (hand-written binary heap) runs over 485 imported path segments, represented by 390 nodes and 970 directed arcs, with walking times adjusted for hills using SRTM elevation (6 s per metre climbed). A pruned search tries every order of up to three shortlisted stops. |
 | **Clear failures** | If nothing fits, it tells you why and gives a number it actually calculated: "needs 36 minutes", "cheapest plan is ₹60", "sunset is at 18:20". It never silently relaxes a limit. |
 | **Google Maps** | **Open in Google Maps** gives walking directions through your stops plus shaping points along the route (no API key needed). **KML for Google My Maps** carries the exact line, which then shows up in the Google Maps app under *Saved → Maps*. GPX export works with other apps. **Add to calendar** saves an .ics event with the itinerary and a 10-minute reminder. |
 | **Sharing** | The request and route identity live in the link's `#fragment`. Opening a shared link re-checks that route against the current time even if its stops are no longer in the recommendation shortlist. If it no longer fits, the app says so instead of swapping in a different route. A dataset-version mismatch requires a fresh plan. |
-| **Saved plans** | Save a plan to return to it on the same device. Opening it checks that route against the current time and data. Remove saved plans whenever you like. |
+| **Saved plans and backups** | Keep up to 12 plans locally. Export a JSON backup and restore it on another device; validated restores merge without replacing existing walks or changing their dataset versions. Opening a saved walk rechecks its route. |
+| **Campus field notebook** | Record dated observations about prices, hours or access, then export them for manual review. Up to 100 notes stay in this browser. Observations never automatically change planner data. |
 | **Modes for conditions** | *Rain mode* prefers covered paths and schedules sheltered stops unless you explicitly require an unsheltered place, which is flagged. *Avoid steps* excludes paths marked with steps. Stair and cover records in the demo have not been surveyed. |
 | **Calibration log** | After a walk, log walking time excluding stops and the return buffer. The log stays on your device, can be exported as JSON, and summarises how accurate the estimates are. Logging does not automatically change future estimates. |
 | **Interface** | Responsive (phone List/Map tabs, laptop split view), light and dark themes, a **Show entire route** map control, an interactive dot-grid backdrop with a cursor hotspot and click ripples, spotlight hover on cards, and keyboard and reduced-motion support. |
@@ -45,6 +48,7 @@ For a class break, choose your campus start, use **Find a campus stop** to add a
 |---|---|
 | `npm run verify` | Lint, typecheck, all unit and invariant tests, production build |
 | `npm test` | Vitest only |
+| `npm run benchmark` | Repeatable 96-request campus workload, timings and a result digest; compare on the same machine |
 | `npm audit --audit-level=high` | Check dependencies for known advisories; also runs in release CI |
 | `npm run data:check -- <file>` | Validate a dataset; defaults to the Manipal dataset used by the app. Add `--production` to also refuse demo and placeholder data |
 | `npm run data:osm` | Rebuild `src/data/manipal-demo.json` from the saved OSM snapshot (`-- --fetch` to re-download, `-- --elevation` to fill missing heights) |
@@ -99,7 +103,7 @@ form ─► plan(dataset, request, now) ─► up to 3 plans ─► list + Leafl
 | `src/core/export/` | Google Maps URL, KML, GPX, plain-text itinerary |
 | `src/core/share.ts` | Versioned, validated share links |
 | `src/core/dataset/` | Validation (IDs, geometry, segments, hours, reachability, production rules) |
-| `src/storage/` | On-device saved plans and validated calibration logs |
+| `src/storage/` | Saved walks and validated backups, calibration logs, and local field observations |
 | `src/ui/` | React components: form, plan cards, Leaflet map, backdrop and effects |
 | `scripts/` | OSM importer, validator CLI, GeoJSON export, fixture generator |
 | `data/osm/` | Saved OSM snapshot, checksum and acquisition metadata, elevation cache, and provenance notes, so the demo rebuilds offline |
@@ -118,7 +122,7 @@ An offline rebuild preserves the snapshot acquisition date. A checksum mismatch 
 
 ## Privacy
 
-No accounts, tracking or analytics. Planning runs entirely in your browser. Your map provider sees your IP address and the map area you view. When you open a Google Maps link, Google receives the route points. Shared links contain your start point, route and preferences, so they aren't secret. Saved plans and calibration logs stay on this browser and are lost when site data is cleared; logs leave the device only when you export them. Blocked or full browser storage produces a clear failure. See [SECURITY.md](SECURITY.md) for reporting issues.
+No accounts, tracking or analytics. Planning runs entirely in your browser. Your map provider sees your IP address and the map area you view. When you open a Google Maps link, Google receives the route points. Shared links contain your start point, route and preferences, so they aren't secret. Saved walks, calibration logs and field notes stay in this browser and are lost when site data is cleared; they leave only when you export them. Saved-walk backups can be restored; notebook exports support manual review. Blocked or full browser storage produces a clear failure. See [SECURITY.md](SECURITY.md) for reporting issues.
 
 ## Status and next steps
 

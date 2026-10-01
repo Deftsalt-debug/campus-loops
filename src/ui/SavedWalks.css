@@ -1,0 +1,10 @@
+.saved-backup { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+.saved-backup > .btn { justify-self: start; }
+.saved-restore { display: grid; gap: 6px; min-width: 0; }
+.saved-restore label { font-size: 0.85rem; font-weight: 600; }
+.saved-restore input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; font: inherit; font-size: 0.8rem; padding: 8px; }
+.saved-restore input::file-selector-button { font: inherit; margin-right: 8px; min-height: 32px; cursor: pointer; }
+.saved-backup .hint { margin: 0; }
+.saved-backup-status { margin: 0; font-size: 0.85rem; color: var(--fg); overflow-wrap: anywhere; }
+.saved-backup-status:empty { display: none; }
+.saved-walks .saved-open { min-width: 0; overflow-wrap: anywhere; }

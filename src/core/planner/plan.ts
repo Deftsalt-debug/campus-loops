@@ -110,7 +110,9 @@ function run(
   // ---- Required stops must fit the stop cap ----
   const places = new Map(dataset.places.map((p) => [p.id, p]));
   const required = request.requiredPlaceIds.map((id) => places.get(id)!);
-  const needsExtraCafe = request.requireCafe && !required.some((p) => p.category === 'cafe');
+  const overrides = request.dwellOverridesMin ?? {};
+  const dwellSec = (p: Place) => (Object.hasOwn(overrides, p.id) ? overrides[p.id] : p.dwellDefaultMin) * 60;
+  const needsExtraCafe = request.requireCafe && !required.some((p) => p.category === 'cafe' && dwellSec(p) > 0);
   const profile = OCCASIONS[request.occasion];
   const maxStops = Math.min(config.maxStops, profile.maxStops ?? Infinity);
   if (required.length + (needsExtraCafe ? 1 : 0) > maxStops) {
@@ -128,7 +130,6 @@ function run(
     rain: request.rain,
     rainUncoveredMultiplier: config.rainUncoveredMultiplier,
   };
-  const overrides = request.dwellOverridesMin ?? {};
   const ctx = createRequestContext({
     graph,
     model,
@@ -140,7 +141,7 @@ function run(
     requireCafe: request.requireCafe,
     avoidSteps: request.avoidSteps,
     maxStops,
-    dwellSec: (p: Place) => (Object.hasOwn(overrides, p.id) ? overrides[p.id] : p.dwellDefaultMin) * 60,
+    dwellSec,
   }, { reuseFactor: config.loopReuseFactor, maxDetour: config.loopMaxDetour });
 
   for (const p of required) {
@@ -232,8 +233,9 @@ function diagnose(
   config: PlannerConfig,
   context: PlanContext,
 ): Blocker {
-  // Minimums only need the quickest way home, so skip loop variants here.
-  const run = (l: Limits) => findItineraries(dataset, places, ctx, request, l, config, null, false);
+  // Dry routing uses true time. In rain, a less sheltered loop can be quicker
+  // than the preferred return, so include it when computing honest minimums.
+  const run = (l: Limits) => findItineraries(dataset, places, ctx, request, l, config, null, request.rain);
   const availableMin = Math.floor(limits.availableSec / 60);
   const deadlineText: Record<DeadlineReason, string> = {
     duration: `${request.durationMin} minutes`,

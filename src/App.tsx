@@ -13,6 +13,9 @@ import { ripple } from './ui/effects'
 import { download, fromIstInput, istInputValue } from './ui/format'
 import { PlanCard } from './ui/PlanCard'
 import { PlanForm } from './ui/PlanForm'
+import { PlanComparison } from './ui/PlanComparison'
+import { FieldNotebook } from './ui/FieldNotebook'
+import { SavedWalks } from './ui/SavedWalks'
 import { RouteMap } from './ui/RouteMap'
 import { initialForm, sharedForm, toRequest, type FormState } from './ui/planningState'
 
@@ -273,20 +276,9 @@ export default function App() {
 
           <PlanForm dataset={dataset} state={form} onChange={update} durationError={durationError} budgetError={budgetError} previewError={previewError} />
 
-          {savedPlans.length > 0 && (
-            <details className="more saved-walks card">
-              <summary>Saved walks <span className="count">{savedPlans.length}</span></summary>
-              <p className="hint">Only on this device. Opening a saved walk checks it again. Preview walks keep their chosen date.</p>
-              <ul>
-                {savedPlans.map((s) => (
-                  <li key={s.hash}>
-                    <button type="button" className="saved-open" onClick={() => { window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${s.hash}`); applyLink(dataset, s.hash) }}>{s.name}</button>
-                    <button type="button" className="btn ghost" aria-label={`Remove saved walk: ${s.name}`} onClick={() => removeSaved(s.hash)}>Remove</button>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
+          <SavedWalks savedPlans={savedPlans}
+            onOpen={(hash) => { window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`); applyLink(dataset, hash) }}
+            onRemove={removeSaved} onImported={() => setSavedPlans(listSavedPlans())} notify={notify} />
 
           <section id="outings" tabIndex={-1} aria-label="Suggested outings" className="outings" aria-busy={form !== deferredForm}>
             <div className="results-heading"><h2>Your way out</h2><span role="status">{plans.length ? `${plans.length} walk${plans.length === 1 ? '' : 's'} found` : 'Let’s find your walk'}</span></div>
@@ -322,6 +314,8 @@ export default function App() {
               </div>
             )}
 
+            <PlanComparison plans={plans} selectedId={selected?.id ?? null} onSelect={onSelect} />
+
             {plans.length > 0 && (
               <div className="view-switch" role="tablist" aria-label="View">
                 {(['list', 'map'] as const).map((v) => <button key={v} id={`view-${v}`} type="button" role="tab" aria-controls={`${v}-view`} tabIndex={view === v ? 0 : -1} aria-selected={view === v} onClick={() => setView(v)} onKeyDown={(e) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); changeView(e.key === 'Home' ? 'list' : e.key === 'End' ? 'map' : view === 'list' ? 'map' : 'list') } }}>{v === 'list' ? 'Itineraries' : 'Map'}</button>)}
@@ -354,11 +348,13 @@ export default function App() {
             </div>
           </section>
 
+          <FieldNotebook dataset={dataset} notify={notify} />
+
           <footer className="foot">
             <p>{dataset.licence}</p>
             <p>
               Map attribution is shown on the map. The tile provider sees your IP address and the map area you view. Shared links contain the
-              start point, route and preferences. Saved walks and calibration logs stay on this device. No accounts or analytics.
+              start point, route and preferences. Saved walks, field notes and calibration logs stay on this device unless you export them. No accounts or analytics.
             </p>
             <details className="more calib">
               <summary>Calibration log ({logCount})</summary>

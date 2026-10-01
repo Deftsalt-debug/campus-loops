@@ -95,7 +95,15 @@ export function createRequestContext(
     }
     return s;
   };
-  const weight = (edge: Edge) => routingWeight(edge, graph.ascent.get(edge.id) ?? 0, model);
+  const weightCache = new Map<string, number>();
+  const weight = (edge: Edge) => {
+    let value = weightCache.get(edge.id);
+    if (value === undefined) {
+      value = routingWeight(edge, graph.ascent.get(edge.id) ?? 0, model);
+      weightCache.set(edge.id, value);
+    }
+    return value;
+  };
 
   // One Dijkstra per distinct source node, reused for every leg in this request.
   const searches = new Map<string, ShortestPaths>();
@@ -133,7 +141,7 @@ export function createRequestContext(
     const key = `${from}|${[...walked].sort().join(',')}`;
     if (loops.has(key)) return loops.get(key)!;
     const penalised = (edge: Edge) => weight(edge) * (walked.has(edge.segmentId) ? loopOptions.reuseFactor : 1);
-    const edges = reconstructPath(dijkstra(graph, from, penalised), startNode);
+    const edges = reconstructPath(dijkstra(graph, from, penalised, { target: startNode }), startNode);
     const candidate = edges && toLeg(edges);
     const worthIt =
       candidate !== null &&
@@ -155,10 +163,11 @@ export function createRequestContext(
 }
 
 /** Sum of upper or lower spend over visits. Unknown prices never reach here. */
-export function spendOf(place: Place): { low: number; high: number } {
+export function spendOf(place: Place, dwellSec: number): { low: number; high: number } {
+  if (dwellSec === 0) return { low: 0, high: 0 };
   return { low: place.spendLowInr ?? 0, high: place.spendHighInr ?? 0 };
 }
 
-export function isCafeRequirementMet(visits: { place: Place }[]): boolean {
-  return visits.some((v) => v.place.category === 'cafe');
+export function isCafeRequirementMet(visits: { place: Place; dwellSec: number }[]): boolean {
+  return visits.some((v) => v.place.category === 'cafe' && v.dwellSec > 0);
 }

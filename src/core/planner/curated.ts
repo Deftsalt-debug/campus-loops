@@ -59,7 +59,7 @@ export function evaluateCurated(
       }
       visits.push({ place, arriveSec: elapsed, dwellSec, afterEdge: i });
       elapsed += dwellSec;
-      const { low, high } = spendOf(place);
+      const { low, high } = spendOf(place, dwellSec);
       spendLow += low;
       spendHigh += high;
     }

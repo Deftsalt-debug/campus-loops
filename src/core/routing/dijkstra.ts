@@ -4,7 +4,7 @@ import { MinHeap } from './minHeap';
 
 export interface ShortestPaths {
   source: string;
-  /** Best known weight from the source. Unreachable nodes are absent, never estimated. */
+  /** Final shortest weights for settled nodes. Unreachable or unexplored nodes are absent. */
   dist: Map<string, number>;
   /** The arc used to reach each node on its best path (absent for the source). */
   prevEdge: Map<string, Edge>;
@@ -25,7 +25,7 @@ export function dijkstra(
   graph: Graph,
   source: string,
   weight: (edge: Edge) => number,
-  options: { reverse?: boolean } = {},
+  options: { reverse?: boolean; target?: string } = {},
 ): ShortestPaths {
   const reverse = options.reverse ?? false;
   const dist = new Map<string, number>();
@@ -42,6 +42,16 @@ export function dijkstra(
     // Lazy deletion: an older, longer entry for u can still be in the heap.
     if (settled.has(u) || d > dist.get(u)!) continue;
     settled.add(u);
+    if (u === options.target) {
+      // The target is final now. Discard tentative distances so callers never
+      // mistake a discovered but unsettled node for a shortest path.
+      for (const node of dist.keys()) {
+        if (settled.has(node)) continue;
+        dist.delete(node);
+        prevEdge.delete(node);
+      }
+      break;
+    }
 
     const arcs = (reverse ? graph.in.get(u) : graph.out.get(u)) ?? [];
     for (const edge of arcs) {

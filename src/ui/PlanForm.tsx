@@ -2,10 +2,11 @@ import { useState, type KeyboardEvent } from 'react'
 import { DEFAULT_CONFIG } from '../core/planner/config'
 import { OCCASION_IDS, OCCASIONS } from '../core/planner/occasions'
 import type { Dataset, Occasion, PlaceCategory } from '../core/types'
-import { CATEGORY_LABEL, findCampusPlaces, toggleRequiredPlace, unconfirmedPlaceDetails } from './campusPlaces'
+import { CATEGORY_LABEL, findCampusPlaces, stopTimeError, toggleRequiredPlace, unconfirmedPlaceDetails, updateStopTime } from './campusPlaces'
 import { ripple, spotlight } from './effects'
 import { rupees } from './format'
 import type { FormState } from './planningState'
+import './stopTimes.css'
 
 const DURATIONS = [30, 45, 60, 90]
 const BUDGETS = [0, 100, 200, 300]
@@ -28,6 +29,14 @@ export function PlanForm({ dataset, state, onChange, durationError, budgetError,
   const groups = (['cafe', 'seating', 'landmark'] as const).map((c) => ({ c, places: schedulable.filter((p) => p.category === c) }))
   const matches = findCampusPlaces(dataset.places, placeQuery, placeCategory)
   const bufferMin = state.bufferMin ?? DEFAULT_CONFIG.defaultBufferMin
+  // Keep other custom times from shared links visible and editable, including
+  // when their place is no longer a must-visit. This also keeps invalid edits
+  // recoverable if someone removes the corresponding must-visit.
+  const timedStopIds = new Set([...state.required.filter(Boolean), ...Object.keys(state.dwellOverridesMin ?? {})])
+  const timedStops = [...timedStopIds].flatMap((id) => {
+    const place = dataset.places.find((p) => p.id === id)
+    return place ? [place] : []
+  })
 
   const moveFocus = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
     const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
@@ -152,6 +161,42 @@ export function PlanForm({ dataset, state, onChange, durationError, budgetError,
           ))}
         </div>
 
+        {timedStops.length > 0 && (
+          <fieldset className="stop-times" aria-describedby="stop-times-hint">
+            <legend>Time at your stops</legend>
+            <p className="hint" id="stop-times-hint">Walking time is added separately. Set 0 to pass by without stopping.</p>
+            {timedStops.map((place, index) => {
+              const custom = Object.hasOwn(state.dwellOverridesMin ?? {}, place.id)
+              const minutes = custom ? state.dwellOverridesMin![place.id] : place.dwellDefaultMin
+              const error = stopTimeError(minutes)
+              const id = `stop-time-${index}`
+              return (
+                <div className="field stop-time" key={place.id}>
+                  <label htmlFor={id}>{place.name} · minutes</label>
+                  <div className="row">
+                    <input
+                      id={id}
+                      className="input small"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={DEFAULT_CONFIG.maxDwellMin}
+                      step="any"
+                      value={Number.isFinite(minutes) ? minutes : ''}
+                      aria-invalid={Boolean(error)}
+                      aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`}
+                      onChange={(e) => onChange({ dwellOverridesMin: updateStopTime(state.dwellOverridesMin, place.id, e.target.value) })}
+                    />
+                    <button type="button" className="btn ghost" disabled={!custom} aria-label={`Reset ${place.name} to the default ${place.dwellDefaultMin} minutes`} onClick={() => onChange({ dwellOverridesMin: updateStopTime(state.dwellOverridesMin, place.id, null) })}>Default · {place.dwellDefaultMin}m</button>
+                  </div>
+                  <p className="hint" id={`${id}-hint`}>{!state.required.includes(place.id) ? 'Applies if this place is included. ' : ''}{minutes === 0 && place.category === 'cafe' ? 'Passing by does not count as a café or food stop.' : `Default visit: ${place.dwellDefaultMin} minutes.`}</p>
+                  {error && <p className="error" id={`${id}-error`} role="alert">{error}</p>}
+                </div>
+              )
+            })}
+          </fieldset>
+        )}
+
         <details className="more campus-finder">
           <summary>Find a campus stop</summary>
           <div className="form">
@@ -241,7 +286,6 @@ export function PlanForm({ dataset, state, onChange, durationError, budgetError,
               {previewError && <p className="error" id="preview-error">{previewError}</p>}
               <p className="hint" id="preview-hint">Times are India Standard Time. Leave empty to plan from right now.</p>
             </div>
-            {state.dwellOverridesMin && <p className="hint">This shared walk includes custom stop times.</p>}
           </div>
         </details>
       </section>

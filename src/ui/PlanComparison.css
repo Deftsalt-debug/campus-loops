@@ -1,0 +1,11 @@
+.plan-comparison { margin: 16px 0; min-width: 0; }
+.comparison-scroll { overflow-x: auto; max-width: 100%; border: 1px solid var(--line); border-radius: 12px; }
+.comparison-scroll table { width: 100%; min-width: 440px; border-collapse: collapse; font-size: .8rem; text-align: left; }
+.comparison-scroll th, .comparison-scroll td { padding: 10px; vertical-align: top; border-bottom: 1px solid var(--line); }
+.comparison-scroll th { font-weight: 600; }
+.comparison-scroll th:first-child { width: 100px; }
+.comparison-scroll tbody tr:last-child > * { border-bottom: 0; }
+.comparison-scroll small { display: block; margin-top: 4px; font-size: .74rem; color: var(--muted); }
+.comparison-choice { appearance: none; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer; min-height: 44px; }
+.comparison-choice[aria-pressed="true"] { color: var(--accent); }
+.comparison-choice span { overflow-wrap: anywhere; }

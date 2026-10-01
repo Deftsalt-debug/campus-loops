@@ -5,7 +5,7 @@ import { googleMapsDirectionsUrl, MAX_WAYPOINTS } from '../src/core/export/googl
 import { haversineM, planGeometry } from '../src/core/geo';
 import { plan, rebuildPlan } from '../src/core/planner/plan';
 import { decodeShare, encodeShare } from '../src/core/share';
-import type { PlanRequest } from '../src/core/types';
+import type { Plan, PlanRequest } from '../src/core/types';
 import { fixture, ist, tinyDataset, twoWay } from './helpers';
 
 const ds = fixture();
@@ -222,6 +222,7 @@ describe('calendar export (.ics)', () => {
   // Undo RFC 5545 line folding to read whole properties.
   const unfolded = ics.replace(/\r\n /g, '');
   const prop = (name: string) => unfolded.split('\r\n').find((l) => l.startsWith(`${name}:`))?.slice(name.length + 1);
+  const uid = (event: string) => event.replace(/\r\n /g, '').split('\r\n').find((line) => line.startsWith('UID:'));
 
   it('is a well-formed calendar with one event and a reminder', () => {
     expect(ics.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n')).toBe(true);
@@ -246,6 +247,36 @@ describe('calendar export (.ics)', () => {
     expect(description).toContain('https://example.test/#v=1&id=x');
     expect(prop('LOCATION')).toBe('Gate A\\, MIT Manipal');
     expect(prop('GEO')).toBe(`${route.start[0].toFixed(6)};${route.start[1].toFixed(6)}`);
+  });
+
+  it('gives the same stop sequence from different starts distinct calendar identities', () => {
+    const campus = tinyDataset(['A', 'B', 'P'], [...twoWay('ap', 'A', 'P', 100), ...twoWay('bp', 'B', 'P', 100)], [{ id: 'bench', nodeId: 'P' }]);
+    campus.starts = [{ id: 'start-a', name: 'Gate A', nodeId: 'A' }, { id: 'start-b', name: 'Gate B', nodeId: 'B' }];
+    const request = { ...req, durationMin: 60, requiredPlaceIds: ['bench'], requireCafe: false };
+    const fromA = rebuildPlan(campus, { ...request, startId: 'start-a' }, startAt, 'g:bench').plans[0];
+    const fromB = rebuildPlan(campus, { ...request, startId: 'start-b' }, startAt, 'g:bench').plans[0];
+    expect(fromA).toBeDefined();
+    expect(fromB).toBeDefined();
+    expect(fromA.id).toBe(fromB.id);
+    expect(fromA.startNodeId).not.toBe(fromB.startNodeId);
+    const exportRoute = (outing: Plan) => planToIcs(outing, {
+      startAt, stamp, startName: 'Campus start', startCoords: planGeometry(campus, outing).start, datasetVersion: campus.datasetVersion,
+    });
+    expect(uid(exportRoute(fromA))).not.toBe(uid(exportRoute(fromB)));
+  });
+
+  it('keeps an outing identity stable across re-exports but distinguishes changed routes and map versions', () => {
+    const options = { startAt, stamp, startName: 'Gate A', startCoords: route.start, datasetVersion: ds.datasetVersion };
+    const original = uid(planToIcs(p, options));
+    expect(uid(planToIcs({ ...p, name: 'Updated display name' }, {
+      ...options, stamp: new Date(stamp.getTime() + 86_400_000), startName: 'Renamed Gate A', url: 'https://example.test/#different-link',
+    }))).toBe(original);
+    expect(uid(planToIcs(p, { ...options, datasetVersion: `${ds.datasetVersion}-revised` }))).not.toBe(original);
+    expect(uid(planToIcs(p, { ...options, startAt: new Date(startAt.getTime() + 60_000) }))).not.toBe(original);
+    expect(uid(planToIcs({ ...p, startNodeId: 'different-start-node' }, options))).not.toBe(original);
+    expect(uid(planToIcs({ ...p, edgeIds: [...p.edgeIds, 'new-route-edge'] }, options))).not.toBe(original);
+    expect(uid(planToIcs({ ...p, edgeIds: [...p.edgeIds].reverse() }, options))).not.toBe(original);
+    expect(uid(planToIcs(p, { ...options, startCoords: [route.start[0] + 0.001, route.start[1]] }))).not.toBe(original);
   });
 
   it('escapes text so commas, semicolons and backslashes cannot break fields', () => {

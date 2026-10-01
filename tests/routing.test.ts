@@ -117,6 +117,62 @@ describe('dijkstra', () => {
     expect(noSteps.dist.get('B')).toBe(10);
   });
 
+  it('stops once the target is settled and excludes unfinished paths', () => {
+    const g = graphOf(['S', 'A', 'T', 'X', 'Y'], [
+      ['sa', 'S', 'A', 1], ['sx', 'S', 'X', 50],
+      ['at', 'A', 'T', 1], ['ax', 'A', 'X', 20], ['ty', 'T', 'Y', 1], ['yx', 'Y', 'X', 1],
+    ]);
+    const seen: string[] = [];
+    const result = dijkstra(g, 'S', (edge) => { seen.push(edge.id); return edge.meters; }, { target: 'T' });
+    expect(result.dist).toEqual(new Map([['S', 0], ['A', 1], ['T', 2]]));
+    expect([...result.prevEdge.keys()]).toEqual(['A', 'T']);
+    expect(reconstructPath(result, 'X')).toBeNull();
+    expect(ids(reconstructPath(result, 'T'))).toEqual(['sa', 'at']);
+    expect(seen).not.toContain('ty');
+    expect(seen).not.toContain('yx');
+    expect(dijkstra(g, 'S', byMeters).dist.get('X')).toBe(4);
+  });
+
+  it('preserves target tie-breaking and zero-length paths', () => {
+    const arcs: ArcSpec[] = [
+      ['ab', 'A', 'B', 0], ['ac', 'A', 'C', 0], ['bd', 'B', 'D', 1], ['cd', 'C', 'D', 1],
+    ];
+    for (const order of [arcs, [...arcs].reverse()]) {
+      const g = graphOf(['A', 'B', 'C', 'D'], order);
+      const all = dijkstra(g, 'A', byMeters);
+      for (const target of ['A', 'B', 'C', 'D']) {
+        const result = dijkstra(g, 'A', byMeters, { target });
+        expect(result.dist.get(target)).toBe(all.dist.get(target));
+        expect(ids(reconstructPath(result, target))).toEqual(ids(reconstructPath(all, target)));
+      }
+      const self = dijkstra(g, 'A', byMeters, { target: 'A' });
+      expect(self.dist).toEqual(new Map([['A', 0]]));
+      expect(self.prevEdge.size).toBe(0);
+    }
+  });
+
+  it('returns the full reachable search when the target is unreachable or unknown', () => {
+    const g = graphOf(['A', 'B', 'X'], twoWay('ab', 'A', 'B', 5));
+    const all = dijkstra(g, 'A', byMeters);
+    for (const target of ['X', 'missing']) {
+      expect(dijkstra(g, 'A', byMeters, { target })).toEqual(all);
+    }
+    expect(dijkstra(g, 'missing', byMeters, { target: 'A' }).dist.size).toBe(0);
+  });
+
+  it('supports a reverse target with the same directed path as a full reverse search', () => {
+    const g = graphOf(['A', 'B', 'C', 'D'], [
+      ['ab', 'A', 'B', 1], ['bc', 'B', 'C', 1], ['ca', 'C', 'A', 1], ['da', 'D', 'A', 10],
+    ]);
+    const back = dijkstra(g, 'A', byMeters, { reverse: true, target: 'B' });
+    const home = reconstructPath(back, 'B')!;
+    expect(ids(home)).toEqual(['bc', 'ca']);
+    expect(isContinuous(home, 'B', 'A')).toBe(true);
+    expect(back.dist.get('B')).toBe(2);
+    expect(back.dist.has('D')).toBe(false);
+    expect(back.prevEdge.has('D')).toBe(false);
+  });
+
   it('agrees with brute-force path enumeration on random tiny graphs', () => {
     let seed = 7;
     const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
@@ -148,6 +204,12 @@ describe('dijkstra', () => {
 
       for (const n of nodes) {
         expect(sp.dist.get(n), `trial ${trial}, node ${n}`).toBe(best.get(n));
+        const targeted = dijkstra(g, 'A', byMeters, { target: n });
+        expect(targeted.dist.get(n), `targeted trial ${trial}, node ${n}`).toBe(best.get(n));
+        expect(ids(reconstructPath(targeted, n))).toEqual(ids(reconstructPath(sp, n)));
+        for (const [settled, distance] of targeted.dist) {
+          expect(distance, `settled trial ${trial}, node ${settled}`).toBe(best.get(settled));
+        }
         const path = reconstructPath(sp, n);
         if (best.has(n)) {
           expect(isContinuous(path!, 'A', n)).toBe(true);

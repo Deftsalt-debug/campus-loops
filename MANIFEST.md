@@ -1,6 +1,6 @@
 # Campus Loops: project manifest
 
-This is everything you need to know about the project: what was built, how to run it, how it works, what to trust, and what to do next. It's accurate as of **1 October 2026**.
+This is the project guide: what was built, how to run it, how it works, what to trust, and what to do next. Updated **2 October 2026**; dated earlier QA checkpoints remain historical evidence.
 
 - **Repository:** https://github.com/Deftsalt-debug/campus-loops
 - **Live site:** https://deftsalt-debug.github.io/campus-loops/ (redeploys automatically on every push to `main`)
@@ -20,7 +20,10 @@ This is everything you need to know about the project: what was built, how to ru
 | Calibration log ("how long did it really take") | ✅ Built (stays on the device) |
 | Deployment (GitHub Actions → Pages) | ✅ Set up |
 | **Field-verified data** (walk the routes, check prices and hours) | ❌ **Not done.** The app runs on a labelled demo dataset |
-| Saved favourites, community routes | ⏳ Not started (roadmap) |
+| Saved walks and backup/restore | ✅ Local storage, up to 12 walks, validated JSON restore |
+| Stop durations and comparison | ✅ Editable 0–120 minute visits; side-by-side route metrics |
+| Campus field notebook | ✅ Local observations and export for manual review; no automatic routing changes |
+| Community routes | ⏳ Not started (roadmap) |
 
 **Bottom line:** the software is complete for a pilot. The *data* is a demo: real streets and real place names from OpenStreetMap, but prices and some opening hours are placeholders, and nothing has been walked yet.
 
@@ -32,7 +35,7 @@ This is everything you need to know about the project: what was built, how to ru
 cd ~/Desktop/Projects/LoopCampus
 npm install          # first time only
 npm run dev          # opens on http://localhost:5173
-npm run verify       # lint + typecheck + ~1,600 tests + production build (run before every push)
+npm run verify       # lint + typecheck + all tests + production build (run before every push)
 ```
 
 At night the planner refuses to plan, because it's daylight-only and checks sunset. Click **Preview tomorrow 10:00** in the notice, or set *More options → Plan as if it's…*.
@@ -144,11 +147,11 @@ src/core/            framework-free logic (lint blocks React imports here)
   dataset/           validate.ts, load.ts
   geo.ts, share.ts, identifiers.ts, calibration.ts, types.ts
 src/ui/              PlanForm, PlanCard, RouteMap (Leaflet), Backdrop (dot grid), effects, format
-src/storage/         calibrationLog.ts, savedPlans.ts (localStorage, fail safely)
+src/storage/         calibrationLog.ts, savedPlans.ts, fieldNotes.ts (localStorage, fail safely)
 src/data/            manipal-demo.json, fixtures/pilot-fixture.json
 scripts/             import-osm.ts, osm-rules.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
 data/osm/            raw OSM snapshot, provenance + elevation cache (ODbL)
-tests/               18 files, 1,588 tests at the current QA checkpoint
+tests/               20 files; see RELEASE.md for the latest QA checkpoint
 .github/workflows/   deploy.yml (verify → build → GitHub Pages)
 ROADMAP.md           product plan, decisions, weekly checklists
 ```
@@ -213,7 +216,7 @@ Browser QA: the loop route line starts and ends on the start pin and passes thro
 6. The Google Maps link approximates our route; the KML is exact.
 6b. About 40% of suggestions are still out-and-back, because many campus roads are dead ends in the map data and no reasonable different way home exists.
 7. Planning is limited to today and 30–90 minutes; there's no future-date planning beyond the preview tool.
-8. There are no saved favourites yet. The share link (and the address bar, which always holds it) works as a bookmark.
+8. Saved walks and field notes are local to the browser. Export a backup before clearing site data; saved-walk backups can be restored, while field notes export for manual review.
 
 ---
 
@@ -225,4 +228,4 @@ Browser QA: the loop route line starts and ends on the start pin and passes thro
 4. **Survey cover and steps** on the main campus paths so rain mode and avoid steps have real effect.
 5. Add road-crossing delays at the highway junctions near Tiger Circle.
 6. Choose a tile provider and a code licence.
-7. Then consider saved favourites and curated "favourite walks" from students (roadmap §11).
+7. After field verification, consider curated "favourite walks" from students (roadmap §11). Saved walks and backup/restore are already available.

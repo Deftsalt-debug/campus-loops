@@ -56,7 +56,7 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
   const visits: ScheduledVisit[] = [];
   const legs: Leg[] = [];
 
-  const requiredCafes = candidates.filter((p) => ctx.requiredIds.has(p.id) && p.category === 'cafe');
+  const requiredCafes = candidates.filter((p) => ctx.requiredIds.has(p.id) && p.category === 'cafe' && ctx.dwellSec(p) > 0);
 
   /** Stops still needed to satisfy required places and the café requirement. */
   const missingRequired = () => {
@@ -80,12 +80,14 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
         const quickest = buildItinerary('g', [...legs, home], [...visits], spendLow, spendHigh, ctx);
         if (quickest.totalSec > limits.availableSec) {
           rejections.time++;
-        } else if (quickest.edges.some((edge) => edge.meters > 0)) {
+        }
+        if (quickest.edges.some((edge) => edge.meters > 0)) {
           // A stop at the start can be part of a walk, but staying there is
           // not an outing. Keep searching so later stops can add a real leg.
-          if (!onlyKind || onlyKind === 'g') itineraries.push(quickest);
+          if (quickest.totalSec <= limits.availableSec && (!onlyKind || onlyKind === 'g')) itineraries.push(quickest);
           // If the quickest way home retraces the way out, also offer a real loop.
-          // A loop is never quicker, so only feasible quickest plans can have one.
+          // In rain mode routing favours shelter, so the alternate return can
+          // take fewer true seconds even when the preferred return is too slow.
           if (loops && (!onlyKind || onlyKind === 'l')) {
             const walked = new Set(legs.flatMap((l) => l.edges.map((e) => e.segmentId)));
             const loopLeg = ctx.loopHome(at, walked);
@@ -116,13 +118,13 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
         rejections.unreachable++;
         continue;
       }
-      const { low, high } = spendOf(place);
+      const dwellSec = ctx.dwellSec(place);
+      const { low, high } = spendOf(place, dwellSec);
       if (spendHigh + high > limits.budgetInr) {
         rejections.budget++;
         continue;
       }
       const arriveSec = elapsedSec + leg.seconds;
-      const dwellSec = ctx.dwellSec(place);
       const departSec = arriveSec + dwellSec;
       const shortestHome = ctx.toStartLowerBound.dist.get(place.nodeId);
       if (shortestHome === undefined) {

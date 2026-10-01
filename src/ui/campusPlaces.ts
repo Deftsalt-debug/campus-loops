@@ -1,4 +1,5 @@
 import type { Place, PlaceCategory } from '../core/types'
+import { DEFAULT_CONFIG } from '../core/planner/config'
 
 export const CATEGORY_LABEL: Record<PlaceCategory, string> = {
   cafe: 'Food & coffee', seating: 'Places to sit', landmark: 'Landmarks', waypoint: 'Waypoints',
@@ -31,4 +32,26 @@ export function toggleRequiredPlace(required: [string, string], placeId: string)
   const next: [string, string] = [...required]
   next[slot] = placeId
   return next
+}
+
+/** Update one stop without dropping custom times carried by a shared walk. */
+export function updateStopTime(
+  overrides: Record<string, number> | undefined,
+  placeId: string,
+  input: string | null,
+): Record<string, number> | undefined {
+  const next = { ...overrides }
+  if (input === null) delete next[placeId]
+  // A cleared input must invalidate the plan until corrected or reset. Treating
+  // it as zero, or keeping the previous value, would show a misleading route.
+  else Object.defineProperty(next, placeId, {
+    value: input.trim() === '' ? NaN : Number(input), enumerable: true, writable: true, configurable: true,
+  })
+  return Object.keys(next).length ? next : undefined
+}
+
+export function stopTimeError(minutes: number): string | null {
+  return Number.isFinite(minutes) && minutes >= 0 && minutes <= DEFAULT_CONFIG.maxDwellMin
+    ? null
+    : `Choose between 0 and ${DEFAULT_CONFIG.maxDwellMin} minutes, or reset to the default.`
 }

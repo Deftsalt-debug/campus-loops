@@ -26,7 +26,7 @@ export function placeIneligibility(
   if (!ctx.fromStart.dist.has(place.nodeId) || !ctx.toStartLowerBound.dist.has(place.nodeId)) {
     return 'UNREACHABLE';
   }
-  if (place.spendHighInr > budgetInr) return 'OVER_BUDGET';
+  if (ctx.dwellSec(place) > 0 && place.spendHighInr > budgetInr) return 'OVER_BUDGET';
   if (rain && ctx.dwellSec(place) > 0 && !place.tags.includes('sheltered')) return 'NOT_SHELTERED';
   return null;
 }
@@ -89,7 +89,7 @@ export function selectCandidates(places: Place[], ctx: RequestContext, opts: Can
   };
   if (ctx.requireCafe) {
     ranked
-      .filter((r) => r.place.category === 'cafe')
+      .filter((r) => r.place.category === 'cafe' && ctx.dwellSec(r.place) > 0)
       .slice(0, opts.cafesKeptWhenRequired)
       .forEach((r) => add(r.place));
   }

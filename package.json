@@ -11,6 +11,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "benchmark": "tsx scripts/benchmark-planner.ts",
     "data:fixture": "tsx scripts/build-fixture.ts",
     "data:check": "tsx scripts/validate-data.ts",
     "data:geojson": "tsx scripts/export-geojson.ts",

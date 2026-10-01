@@ -126,8 +126,25 @@ export interface IcsOptions {
   stamp: Date;
   startName: string;
   startCoords: [number, number];
+  /** Distinguishes routes when a map revision reuses node and edge identifiers. */
+  datasetVersion?: string;
   /** Link back to this exact plan. */
   url?: string;
+}
+
+/** Compact, deterministic route identity; FNV-1a is used as a fingerprint, not for security. */
+function icsRouteIdentity(plan: Plan, opts: IcsOptions): string {
+  // A plan ID describes its stop sequence and is shared across different starts.
+  // JSON framing keeps distinct identifiers/edge sequences unambiguous. Exclude
+  // presentation text, links and DTSTAMP so re-exporting the same outing is stable.
+  const identity = JSON.stringify([
+    opts.datasetVersion ?? '', plan.id, plan.startNodeId, plan.edgeIds, opts.startCoords,
+  ]);
+  let hash = 0xcbf29ce484222325n;
+  for (const byte of new TextEncoder().encode(identity)) {
+    hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
+  }
+  return hash.toString(16).padStart(16, '0');
 }
 
 /**
@@ -146,7 +163,7 @@ export function planToIcs(plan: Plan, opts: IcsOptions): string {
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${plan.id.replace(/[^A-Za-z0-9_.:-]/g, '')}-${icsUtc(opts.startAt)}@campus-loops`,
+    `UID:walk-${icsRouteIdentity(plan, opts)}-${icsUtc(opts.startAt)}@campus-loops`,
     `DTSTAMP:${icsUtc(opts.stamp)}`,
     `DTSTART:${icsUtc(opts.startAt)}`,
     `DTEND:${icsUtc(end)}`,
