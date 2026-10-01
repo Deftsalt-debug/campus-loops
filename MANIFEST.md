@@ -154,7 +154,7 @@ ROADMAP.md           product plan, decisions, weekly checklists
 
 ## 8. Quality assurance performed
 
-**Automated:** 1,313 tests across 10 files, all passing, plus lint, typecheck and production build (`npm run verify`). Highlights:
+**Automated:** 1,314 tests across 10 files, all passing, plus lint, typecheck and production build (`npm run verify`). Highlights:
 - Dijkstra compared against brute force on 200 random graphs.
 - A matrix of **1,152 requests** (2 starts × 4 durations × 3 budgets × 8 modes × rain on/off × 3 times of day). For every plan it checks that the route is continuous and closed, totals add up, nothing breaks a hard limit, the mode's stop cap holds, and **the share link rebuilds the identical plan**.
 - Every start × every mode on the real demo data.
@@ -163,6 +163,7 @@ ROADMAP.md           product plan, decisions, weekly checklists
 **Manual, two passes in a real browser:**
 - *Pass 1* found and fixed: the map opening zoomed far out (it now frames the places); route lines drawn offset from their markers after the map's zoom animation (they're now re-projected after every move, and alignment was verified in the DOM); the map re-flying on every hover or clock tick (it now fits only when the selection changes); the Central Library start snapping onto a private road (anchors now snap only to walkable ways); a heading nested inside a button (accessibility).
 - *Pass 2* found and fixed: re-planning on every hover while in preview mode (performance); the calibration count not refreshing; two map instances on phones (now one).
+- *Final check on the live site* found and fixed: two results could share a name. Generated plans now include their stops ("Walk with a café stop · Sugar Plum (via Fountain near Tiger Circle)"), which keeps names unique and stable for share links. A test now enforces this for every start and mode.
 - Checked: desktop dark mode, phone (375 px) light mode with no horizontal scroll, List/Map tabs, shared link → "Showing a shared plan", a bogus plan id → "no longer fits" + *Plan again*, after-sunset → preview buttons, Google Maps link opening the right walking route, and the production build's assets loading under the `/campus-loops/` sub-path.
 
 ---

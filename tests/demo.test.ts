@@ -49,6 +49,17 @@ describe('Manipal demo dataset', () => {
     }
   });
 
+  it('never shows two results with the same name', () => {
+    for (const s of demo.starts) {
+      for (const occasion of OCCASION_IDS) {
+        const d = OCCASIONS[occasion].defaults;
+        const res = plan(demo, { startId: s.id, occasion, ...d, requiredPlaceIds: [], avoidSteps: false, rain: false }, ist('2026-10-02', '10:30'));
+        const names = res.plans.map((p) => p.name);
+        expect(new Set(names).size, `${s.id} ${occasion}: ${names.join(' | ')}`).toBe(names.length);
+      }
+    }
+  });
+
   it('finds real plans for the headline use case', () => {
     const res = plan(
       demo,

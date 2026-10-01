@@ -82,16 +82,22 @@ function stopPhrases(it: Itinerary): string[] {
     .map((c) => (counts.get(c)! === 1 ? PHRASES[c][0] : `${NUMBERS[counts.get(c)!]} ${PHRASES[c][1]}`));
 }
 
-/** A name describing what the outing contains, e.g. "Short walk with a café stop". */
+/**
+ * A name describing what the outing contains, plus where it stops, e.g.
+ * "Short walk with a café stop · Starbucks". Stop names keep results distinct
+ * (identical stop sets are already removed as duplicates) and stable for share links.
+ */
 export function planName(it: Itinerary, m: PathMetrics, outAndBackRetrace: number): string {
   const suffix = m.retraceRatio > outAndBackRetrace ? ' (out-and-back)' : '';
   if (it.walkName) return it.walkName + suffix;
   const minutes = it.totalSec / 60;
   const walk = minutes < 35 ? 'Short walk' : minutes > 70 ? 'Long walk' : 'Walk';
   const phrases = stopPhrases(it);
-  if (phrases.length) return `${walk} with ${joinList(phrases)}${suffix}`;
-  const via = it.visits.map((v) => v.place.name);
-  return `${walk} via ${joinList(via)}${suffix}`;
+  const stopNames = it.visits.filter((v) => v.dwellSec > 0).map((v) => v.place.name);
+  const passBy = it.visits.filter((v) => v.dwellSec === 0).map((v) => v.place.name);
+  const viaPassBy = passBy.length ? ` (via ${joinList(passBy)})` : '';
+  if (phrases.length) return `${walk} with ${joinList(phrases)}${suffix} · ${stopNames.join(' + ')}${viaPassBy}`;
+  return `${walk} via ${joinList(it.visits.map((v) => v.place.name))}${suffix}`;
 }
 
 function rupees(low: number, high: number): string {
