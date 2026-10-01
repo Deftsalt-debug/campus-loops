@@ -1,0 +1,1594 @@
+{
+  "datasetVersion": "fixture-1",
+  "timezone": "Asia/Kolkata",
+  "isFixture": true,
+  "location": {
+    "lat": 13.3525,
+    "lng": 74.7928
+  },
+  "supportedWindow": {
+    "start": "07:00",
+    "end": "18:30"
+  },
+  "licence": "Synthetic development data. No real-world source; not for navigation.",
+  "sources": [
+    "synthetic"
+  ],
+  "starts": [
+    {
+      "id": "start_gate",
+      "name": "Fixture Gate A",
+      "nodeId": "gate"
+    },
+    {
+      "id": "start_lib",
+      "name": "Fixture Library Steps",
+      "nodeId": "lib"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "gate",
+      "lat": 13.35,
+      "lng": 74.79,
+      "elevationM": 70,
+      "label": "Fixture Gate A"
+    },
+    {
+      "id": "n1",
+      "lat": 13.35,
+      "lng": 74.7909233,
+      "elevationM": 70
+    },
+    {
+      "id": "n2",
+      "lat": 13.35,
+      "lng": 74.7918465,
+      "elevationM": 71
+    },
+    {
+      "id": "n3",
+      "lat": 13.35,
+      "lng": 74.7927698,
+      "elevationM": 71
+    },
+    {
+      "id": "lib",
+      "lat": 13.35,
+      "lng": 74.793693,
+      "elevationM": 72,
+      "label": "Fixture Library Steps"
+    },
+    {
+      "id": "n4",
+      "lat": 13.3508983,
+      "lng": 74.79,
+      "elevationM": 72
+    },
+    {
+      "id": "n5",
+      "lat": 13.3508983,
+      "lng": 74.7909233,
+      "elevationM": 73
+    },
+    {
+      "id": "n6",
+      "lat": 13.3508983,
+      "lng": 74.7918465,
+      "elevationM": 74
+    },
+    {
+      "id": "n7",
+      "lat": 13.3508983,
+      "lng": 74.7927698,
+      "elevationM": 74
+    },
+    {
+      "id": "n8",
+      "lat": 13.3517966,
+      "lng": 74.79,
+      "elevationM": 78
+    },
+    {
+      "id": "n9",
+      "lat": 13.3517966,
+      "lng": 74.7909233,
+      "elevationM": 79
+    },
+    {
+      "id": "n10",
+      "lat": 13.3517966,
+      "lng": 74.7918465,
+      "elevationM": 80
+    },
+    {
+      "id": "n11",
+      "lat": 13.3517966,
+      "lng": 74.7927698,
+      "elevationM": 81
+    },
+    {
+      "id": "n12",
+      "lat": 13.3526949,
+      "lng": 74.7909233,
+      "elevationM": 92
+    },
+    {
+      "id": "n13",
+      "lat": 13.3526949,
+      "lng": 74.7918465,
+      "elevationM": 95
+    },
+    {
+      "id": "far1",
+      "lat": 13.3553899,
+      "lng": 74.7955396,
+      "elevationM": 70
+    },
+    {
+      "id": "far2",
+      "lat": 13.3553899,
+      "lng": 74.7960012,
+      "elevationM": 70
+    }
+  ],
+  "edges": [
+    {
+      "id": "s_g1:f",
+      "from": "gate",
+      "to": "n1",
+      "geometry": [
+        [
+          13.35,
+          74.79
+        ],
+        [
+          13.35,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_g1",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_g1:r",
+      "from": "n1",
+      "to": "gate",
+      "geometry": [
+        [
+          13.35,
+          74.7909233
+        ],
+        [
+          13.35,
+          74.79
+        ]
+      ],
+      "segmentId": "s_g1",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_12:f",
+      "from": "n1",
+      "to": "n2",
+      "geometry": [
+        [
+          13.35,
+          74.7909233
+        ],
+        [
+          13.35,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_12",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_12:r",
+      "from": "n2",
+      "to": "n1",
+      "geometry": [
+        [
+          13.35,
+          74.7918465
+        ],
+        [
+          13.35,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_12",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_23:f",
+      "from": "n2",
+      "to": "n3",
+      "geometry": [
+        [
+          13.35,
+          74.7918465
+        ],
+        [
+          13.35,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_23",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_23:r",
+      "from": "n3",
+      "to": "n2",
+      "geometry": [
+        [
+          13.35,
+          74.7927698
+        ],
+        [
+          13.35,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_23",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_3l:f",
+      "from": "n3",
+      "to": "lib",
+      "geometry": [
+        [
+          13.35,
+          74.7927698
+        ],
+        [
+          13.35,
+          74.793693
+        ]
+      ],
+      "segmentId": "s_3l",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_3l:r",
+      "from": "lib",
+      "to": "n3",
+      "geometry": [
+        [
+          13.35,
+          74.793693
+        ],
+        [
+          13.35,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_3l",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_g4:f",
+      "from": "gate",
+      "to": "n4",
+      "geometry": [
+        [
+          13.35,
+          74.79
+        ],
+        [
+          13.3508983,
+          74.79
+        ]
+      ],
+      "segmentId": "s_g4",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-01-10",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_g4:r",
+      "from": "n4",
+      "to": "gate",
+      "geometry": [
+        [
+          13.3508983,
+          74.79
+        ],
+        [
+          13.35,
+          74.79
+        ]
+      ],
+      "segmentId": "s_g4",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-01-10",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_48:f",
+      "from": "n4",
+      "to": "n8",
+      "geometry": [
+        [
+          13.3508983,
+          74.79
+        ],
+        [
+          13.3517966,
+          74.79
+        ]
+      ],
+      "segmentId": "s_48",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_48:r",
+      "from": "n8",
+      "to": "n4",
+      "geometry": [
+        [
+          13.3517966,
+          74.79
+        ],
+        [
+          13.3508983,
+          74.79
+        ]
+      ],
+      "segmentId": "s_48",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_15:f",
+      "from": "n1",
+      "to": "n5",
+      "geometry": [
+        [
+          13.35,
+          74.7909233
+        ],
+        [
+          13.3508983,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_15",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_15:r",
+      "from": "n5",
+      "to": "n1",
+      "geometry": [
+        [
+          13.3508983,
+          74.7909233
+        ],
+        [
+          13.35,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_15",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_26:f",
+      "from": "n2",
+      "to": "n6",
+      "geometry": [
+        [
+          13.35,
+          74.7918465
+        ],
+        [
+          13.3508983,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_26",
+      "meters": 100,
+      "delaySeconds": 45,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_26:r",
+      "from": "n6",
+      "to": "n2",
+      "geometry": [
+        [
+          13.3508983,
+          74.7918465
+        ],
+        [
+          13.35,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_26",
+      "meters": 100,
+      "delaySeconds": 45,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_37:f",
+      "from": "n3",
+      "to": "n7",
+      "geometry": [
+        [
+          13.35,
+          74.7927698
+        ],
+        [
+          13.3508983,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_37",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_37:r",
+      "from": "n7",
+      "to": "n3",
+      "geometry": [
+        [
+          13.3508983,
+          74.7927698
+        ],
+        [
+          13.35,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_37",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_45:f",
+      "from": "n4",
+      "to": "n5",
+      "geometry": [
+        [
+          13.3508983,
+          74.79
+        ],
+        [
+          13.3508983,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_45",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_45:r",
+      "from": "n5",
+      "to": "n4",
+      "geometry": [
+        [
+          13.3508983,
+          74.7909233
+        ],
+        [
+          13.3508983,
+          74.79
+        ]
+      ],
+      "segmentId": "s_45",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_56:f",
+      "from": "n5",
+      "to": "n6",
+      "geometry": [
+        [
+          13.3508983,
+          74.7909233
+        ],
+        [
+          13.3508983,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_56",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_56:r",
+      "from": "n6",
+      "to": "n5",
+      "geometry": [
+        [
+          13.3508983,
+          74.7918465
+        ],
+        [
+          13.3508983,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_56",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": true,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_67:f",
+      "from": "n6",
+      "to": "n7",
+      "geometry": [
+        [
+          13.3508983,
+          74.7918465
+        ],
+        [
+          13.3508983,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_67",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_67:r",
+      "from": "n7",
+      "to": "n6",
+      "geometry": [
+        [
+          13.3508983,
+          74.7927698
+        ],
+        [
+          13.3508983,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_67",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_89:f",
+      "from": "n8",
+      "to": "n9",
+      "geometry": [
+        [
+          13.3517966,
+          74.79
+        ],
+        [
+          13.3517966,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_89",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_89:r",
+      "from": "n9",
+      "to": "n8",
+      "geometry": [
+        [
+          13.3517966,
+          74.7909233
+        ],
+        [
+          13.3517966,
+          74.79
+        ]
+      ],
+      "segmentId": "s_89",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_910:f",
+      "from": "n9",
+      "to": "n10",
+      "geometry": [
+        [
+          13.3517966,
+          74.7909233
+        ],
+        [
+          13.3517966,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_910",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_910:r",
+      "from": "n10",
+      "to": "n9",
+      "geometry": [
+        [
+          13.3517966,
+          74.7918465
+        ],
+        [
+          13.3517966,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_910",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_1011:f",
+      "from": "n10",
+      "to": "n11",
+      "geometry": [
+        [
+          13.3517966,
+          74.7918465
+        ],
+        [
+          13.3517966,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_1011",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_1011:r",
+      "from": "n11",
+      "to": "n10",
+      "geometry": [
+        [
+          13.3517966,
+          74.7927698
+        ],
+        [
+          13.3517966,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_1011",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_59:f",
+      "from": "n5",
+      "to": "n9",
+      "geometry": [
+        [
+          13.3508983,
+          74.7909233
+        ],
+        [
+          13.3517966,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_59",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_59:r",
+      "from": "n9",
+      "to": "n5",
+      "geometry": [
+        [
+          13.3517966,
+          74.7909233
+        ],
+        [
+          13.3508983,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_59",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_610:f",
+      "from": "n6",
+      "to": "n10",
+      "geometry": [
+        [
+          13.3508983,
+          74.7918465
+        ],
+        [
+          13.3517966,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_610",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": true,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_610:r",
+      "from": "n10",
+      "to": "n6",
+      "geometry": [
+        [
+          13.3517966,
+          74.7918465
+        ],
+        [
+          13.3508983,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_610",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": true,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_711:f",
+      "from": "n7",
+      "to": "n11",
+      "geometry": [
+        [
+          13.3508983,
+          74.7927698
+        ],
+        [
+          13.3517966,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_711",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_711:r",
+      "from": "n11",
+      "to": "n7",
+      "geometry": [
+        [
+          13.3517966,
+          74.7927698
+        ],
+        [
+          13.3508983,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_711",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_912:f",
+      "from": "n9",
+      "to": "n12",
+      "geometry": [
+        [
+          13.3517966,
+          74.7909233
+        ],
+        [
+          13.3522458,
+          74.7907386
+        ],
+        [
+          13.3526949,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_912",
+      "meters": 107.7,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_912:r",
+      "from": "n12",
+      "to": "n9",
+      "geometry": [
+        [
+          13.3526949,
+          74.7909233
+        ],
+        [
+          13.3522458,
+          74.7907386
+        ],
+        [
+          13.3517966,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_912",
+      "meters": 107.7,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_1213:f",
+      "from": "n12",
+      "to": "n13",
+      "geometry": [
+        [
+          13.3526949,
+          74.7909233
+        ],
+        [
+          13.3526949,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_1213",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_1213:r",
+      "from": "n13",
+      "to": "n12",
+      "geometry": [
+        [
+          13.3526949,
+          74.7918465
+        ],
+        [
+          13.3526949,
+          74.7909233
+        ]
+      ],
+      "segmentId": "s_1213",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_1013:f",
+      "from": "n10",
+      "to": "n13",
+      "geometry": [
+        [
+          13.3517966,
+          74.7918465
+        ],
+        [
+          13.3526949,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_1013",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": true,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_1013:r",
+      "from": "n13",
+      "to": "n10",
+      "geometry": [
+        [
+          13.3526949,
+          74.7918465
+        ],
+        [
+          13.3517966,
+          74.7918465
+        ]
+      ],
+      "segmentId": "s_1013",
+      "meters": 100,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": true,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_1311:f",
+      "from": "n13",
+      "to": "n11",
+      "geometry": [
+        [
+          13.3526949,
+          74.7918465
+        ],
+        [
+          13.3517966,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_1311",
+      "meters": 141.4,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_7l:f",
+      "from": "n7",
+      "to": "lib",
+      "geometry": [
+        [
+          13.3508983,
+          74.7927698
+        ],
+        [
+          13.35,
+          74.793693
+        ]
+      ],
+      "segmentId": "s_7l",
+      "meters": 141.4,
+      "delaySeconds": 0,
+      "allowed": false,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_7l:r",
+      "from": "lib",
+      "to": "n7",
+      "geometry": [
+        [
+          13.35,
+          74.793693
+        ],
+        [
+          13.3508983,
+          74.7927698
+        ]
+      ],
+      "segmentId": "s_7l",
+      "meters": 141.4,
+      "delaySeconds": 0,
+      "allowed": false,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_far:f",
+      "from": "far1",
+      "to": "far2",
+      "geometry": [
+        [
+          13.3553899,
+          74.7955396
+        ],
+        [
+          13.3553899,
+          74.7960012
+        ]
+      ],
+      "segmentId": "s_far",
+      "meters": 50,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "s_far:r",
+      "from": "far2",
+      "to": "far1",
+      "geometry": [
+        [
+          13.3553899,
+          74.7960012
+        ],
+        [
+          13.3553899,
+          74.7955396
+        ]
+      ],
+      "segmentId": "s_far",
+      "meters": 50,
+      "delaySeconds": 0,
+      "allowed": true,
+      "steps": false,
+      "covered": false,
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    }
+  ],
+  "places": [
+    {
+      "id": "p_cafe_a",
+      "name": "Fixture Café A",
+      "nodeId": "n6",
+      "category": "cafe",
+      "dwellDefaultMin": 20,
+      "spendLowInr": 80,
+      "spendHighInr": 120,
+      "tags": [
+        "group",
+        "lively",
+        "snacks",
+        "sheltered"
+      ],
+      "verifiedOpenWindows": [
+        {
+          "day": 0,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 1,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 2,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 3,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 4,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 5,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 6,
+          "start": "08:00",
+          "end": "20:00"
+        }
+      ],
+      "hoursStatus": "verified",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_cafe_b",
+      "name": "Fixture Café B",
+      "nodeId": "n11",
+      "category": "cafe",
+      "dwellDefaultMin": 15,
+      "spendLowInr": 40,
+      "spendHighInr": 60,
+      "tags": [
+        "quiet",
+        "conversation",
+        "sheltered"
+      ],
+      "verifiedOpenWindows": [
+        {
+          "day": 1,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        {
+          "day": 2,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        {
+          "day": 3,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        {
+          "day": 4,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        {
+          "day": 5,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        {
+          "day": 6,
+          "start": "09:00",
+          "end": "18:00"
+        }
+      ],
+      "hoursStatus": "verified",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_juice",
+      "name": "Fixture Juice Stall",
+      "nodeId": "n3",
+      "category": "cafe",
+      "dwellDefaultMin": 10,
+      "spendLowInr": null,
+      "spendHighInr": null,
+      "tags": [
+        "snacks"
+      ],
+      "verifiedOpenWindows": [
+        {
+          "day": 0,
+          "start": "08:00",
+          "end": "19:00"
+        },
+        {
+          "day": 1,
+          "start": "08:00",
+          "end": "19:00"
+        },
+        {
+          "day": 2,
+          "start": "08:00",
+          "end": "19:00"
+        },
+        {
+          "day": 3,
+          "start": "08:00",
+          "end": "19:00"
+        },
+        {
+          "day": 4,
+          "start": "08:00",
+          "end": "19:00"
+        },
+        {
+          "day": 5,
+          "start": "08:00",
+          "end": "19:00"
+        },
+        {
+          "day": 6,
+          "start": "08:00",
+          "end": "19:00"
+        }
+      ],
+      "hoursStatus": "verified",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_bench",
+      "name": "Fixture Bench Garden",
+      "nodeId": "n9",
+      "category": "seating",
+      "dwellDefaultMin": 10,
+      "spendLowInr": 0,
+      "spendHighInr": 0,
+      "tags": [
+        "seating",
+        "quiet",
+        "conversation",
+        "shade"
+      ],
+      "verifiedOpenWindows": [],
+      "hoursStatus": "always",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_shelter",
+      "name": "Fixture Covered Seating",
+      "nodeId": "n5",
+      "category": "seating",
+      "dwellDefaultMin": 10,
+      "spendLowInr": 0,
+      "spendHighInr": 0,
+      "tags": [
+        "seating",
+        "sheltered",
+        "conversation"
+      ],
+      "verifiedOpenWindows": [],
+      "hoursStatus": "always",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_view",
+      "name": "Fixture Hilltop Viewpoint",
+      "nodeId": "n13",
+      "category": "landmark",
+      "dwellDefaultMin": 10,
+      "spendLowInr": 0,
+      "spendHighInr": 0,
+      "tags": [
+        "view",
+        "photo",
+        "iconic"
+      ],
+      "verifiedOpenWindows": [],
+      "hoursStatus": "always",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_tower",
+      "name": "Fixture Clock Tower",
+      "nodeId": "n2",
+      "category": "landmark",
+      "dwellDefaultMin": 5,
+      "spendLowInr": 0,
+      "spendHighInr": 0,
+      "tags": [
+        "iconic",
+        "photo",
+        "sheltered"
+      ],
+      "verifiedOpenWindows": [],
+      "hoursStatus": "always",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_pond",
+      "name": "Fixture Pond",
+      "nodeId": "n8",
+      "category": "waypoint",
+      "dwellDefaultMin": 0,
+      "spendLowInr": 0,
+      "spendHighInr": 0,
+      "tags": [
+        "view"
+      ],
+      "verifiedOpenWindows": [],
+      "hoursStatus": "always",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_bookshop",
+      "name": "Fixture Bookshop",
+      "nodeId": "n10",
+      "category": "landmark",
+      "dwellDefaultMin": 15,
+      "spendLowInr": 0,
+      "spendHighInr": 0,
+      "tags": [
+        "quiet",
+        "sheltered"
+      ],
+      "verifiedOpenWindows": [],
+      "hoursStatus": "unknown",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    },
+    {
+      "id": "p_island",
+      "name": "Fixture Island Kiosk",
+      "nodeId": "far1",
+      "category": "cafe",
+      "dwellDefaultMin": 10,
+      "spendLowInr": 30,
+      "spendHighInr": 50,
+      "tags": [
+        "snacks",
+        "sheltered"
+      ],
+      "verifiedOpenWindows": [
+        {
+          "day": 0,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 1,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 2,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 3,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 4,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 5,
+          "start": "08:00",
+          "end": "20:00"
+        },
+        {
+          "day": 6,
+          "start": "08:00",
+          "end": "20:00"
+        }
+      ],
+      "hoursStatus": "verified",
+      "verifiedAt": "2026-09-20",
+      "source": "synthetic fixture"
+    }
+  ],
+  "curatedWalks": [
+    {
+      "id": "w_pond",
+      "name": "Fixture Pond Loop",
+      "startNodeId": "gate",
+      "edgeIds": [
+        "s_g4:f",
+        "s_48:f",
+        "s_89:f",
+        "s_59:r",
+        "s_15:r",
+        "s_g1:r"
+      ],
+      "stops": [],
+      "tags": [
+        "quiet",
+        "conversation",
+        "view"
+      ],
+      "verifiedAt": "2026-09-20"
+    },
+    {
+      "id": "w_hill",
+      "name": "Fixture Hill Circuit",
+      "startNodeId": "gate",
+      "edgeIds": [
+        "s_g1:f",
+        "s_15:f",
+        "s_59:f",
+        "s_912:f",
+        "s_1213:f",
+        "s_1311:f",
+        "s_711:r",
+        "s_37:r",
+        "s_23:r",
+        "s_12:r",
+        "s_g1:r"
+      ],
+      "stops": [
+        {
+          "placeId": "p_view",
+          "afterEdge": 5
+        }
+      ],
+      "tags": [
+        "view",
+        "photo"
+      ],
+      "verifiedAt": "2026-09-20"
+    }
+  ]
+}

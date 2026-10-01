@@ -1,0 +1,41 @@
+{
+  "name": "campus-loops",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "lint": "oxlint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "data:fixture": "tsx scripts/build-fixture.ts",
+    "data:check": "tsx scripts/validate-data.ts",
+    "data:geojson": "tsx scripts/export-geojson.ts",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "data:osm": "tsx scripts/import-osm.ts"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.3"
+  },
+  "description": "Plan a walk around MIT Manipal that fits your time, budget and occasion — and get back in time.",
+  "engines": {
+    "node": ">=22"
+  }
+}

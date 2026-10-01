@@ -1,0 +1,918 @@
+/* Campus Loops — one accent colour, system type, quick (≤220 ms) motion. */
+
+:root {
+  --bg: #f6f7f5;
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-solid: #ffffff;
+  --surface-2: #eef1ee;
+  --fg: #16201b;
+  --muted: #5b6660;
+  --line: #dde3df;
+  --accent: #0d7a55;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(13, 122, 85, 0.12);
+  --warn-bg: #fff4e2;
+  --warn-fg: #7a4600;
+  --danger-bg: #fdecec;
+  --danger-fg: #8a1f1f;
+  --dot: 22, 32, 27;
+  --glow: 13, 122, 85;
+  --shadow: 0 1px 2px rgba(16, 24, 20, 0.06), 0 8px 24px rgba(16, 24, 20, 0.06);
+  --radius: 14px;
+  --fast: 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1311;
+    --surface: rgba(22, 29, 26, 0.76);
+    --surface-solid: #161d1a;
+    --surface-2: #1e2723;
+    --fg: #e8eeeb;
+    --muted: #9aa8a1;
+    --line: #2a3530;
+    --accent: #3fd69b;
+    --accent-ink: #062016;
+    --accent-soft: rgba(63, 214, 155, 0.14);
+    --warn-bg: #33270f;
+    --warn-fg: #ffd28a;
+    --danger-bg: #3a1717;
+    --danger-fg: #ffb4b4;
+    --dot: 232, 238, 235;
+    --glow: 63, 214, 155;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  overflow-x: hidden;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+select {
+  font-size: 16px; /* stops iOS zooming into fields */
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Interactive backdrop ---------- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ---------- Layout ---------- */
+.app {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 100dvh;
+}
+
+.panel {
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+
+.map-pane {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .app {
+    grid-template-columns: minmax(400px, 480px) minmax(0, 1fr);
+    height: 100dvh;
+  }
+  .panel {
+    overflow-y: auto;
+    padding: 20px 20px 32px;
+    scrollbar-gutter: stable;
+  }
+  .map-pane {
+    display: block;
+    position: relative;
+    padding: 16px 16px 16px 0;
+  }
+  .view-switch {
+    display: none !important;
+  }
+}
+
+/* Phone: the map shows inline when the Map tab is chosen. */
+.map-inline {
+  height: min(62dvh, 520px);
+}
+
+@media (min-width: 960px) {
+  .map-inline {
+    display: none;
+  }
+}
+
+/* ---------- Header ---------- */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand h1 {
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.brand p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 6px 18px rgba(var(--glow), 0.35);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border: 0;
+  cursor: pointer;
+  min-height: 28px;
+}
+
+/* ---------- Cards & spotlight hover ---------- */
+.card {
+  position: relative;
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.spot {
+  --mx: 50%;
+  --my: 50%;
+  isolation: isolate;
+}
+
+.spot::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(220px circle at var(--mx) var(--my), rgba(var(--glow), 0.55), transparent 60%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--fast);
+  pointer-events: none;
+}
+
+.spot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(320px circle at var(--mx) var(--my), rgba(var(--glow), 0.08), transparent 55%);
+  opacity: 0;
+  transition: opacity var(--fast);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.spot:hover::before,
+.spot:hover::after,
+.spot:focus-within::before {
+  opacity: 1;
+}
+
+.section-title {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+/* ---------- Mode picker ---------- */
+.modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mode {
+  position: relative;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-solid);
+  cursor: pointer;
+  min-height: 64px;
+  overflow: hidden;
+  transition: transform var(--fast), border-color var(--fast), background var(--fast);
+}
+
+.mode:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--glow), 0.5);
+}
+
+.mode:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.mode[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.mode strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.mode span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+/* ---------- Form ---------- */
+.form {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field > label,
+.field > .label {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.input,
+select.input {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-solid);
+  width: 100%;
+  transition: border-color var(--fast), box-shadow var(--fast);
+}
+
+.input:hover {
+  border-color: rgba(var(--glow), 0.45);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+
+.input.small {
+  width: 92px;
+}
+
+.chip {
+  position: relative;
+  overflow: hidden;
+  min-height: 44px;
+  min-width: 52px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-solid);
+  cursor: pointer;
+  transition: border-color var(--fast), background var(--fast), transform var(--fast);
+}
+
+.chip:hover {
+  border-color: rgba(var(--glow), 0.5);
+}
+
+.chip:active {
+  transform: scale(0.97);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.switch small {
+  display: block;
+  color: var(--muted);
+}
+
+.switch input {
+  appearance: none;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--line);
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  transition: background var(--fast);
+}
+
+.switch input::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform var(--fast);
+}
+
+.switch input:checked {
+  background: var(--accent);
+}
+
+.switch input:checked::after {
+  transform: translateX(18px);
+}
+
+details.more > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  list-style: none;
+  gap: 8px;
+}
+
+details.more > summary::before {
+  content: '›';
+  display: inline-block;
+  transition: transform var(--fast);
+  font-size: 1.2rem;
+}
+
+details.more[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+details.more > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.more .form {
+  padding-top: 6px;
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.error {
+  font-size: 0.85rem;
+  color: var(--danger-fg);
+  margin: 0;
+}
+
+/* ---------- Buttons & ripple ---------- */
+.btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-solid);
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--fg);
+  font-weight: 600;
+  font-size: 0.92rem;
+  transition: transform var(--fast), border-color var(--fast), box-shadow var(--fast), background var(--fast);
+}
+
+.btn:hover {
+  border-color: rgba(var(--glow), 0.55);
+  box-shadow: 0 4px 14px rgba(var(--glow), 0.16);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0.25;
+  transform: scale(0);
+  animation: ripple 520ms ease-out forwards;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* ---------- Results ---------- */
+.context {
+  font-size: 0.86rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.context b {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.notice {
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  display: grid;
+  gap: 10px;
+}
+
+.notice.danger {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+.notice p {
+  margin: 0;
+}
+
+.plans {
+  display: grid;
+  gap: 10px;
+}
+
+.plan {
+  cursor: pointer;
+  transition: transform var(--fast), border-color var(--fast), box-shadow var(--fast);
+  padding: 14px;
+}
+
+.plan:hover {
+  transform: translateY(-1px);
+}
+
+.plan[aria-current='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow);
+  cursor: default;
+}
+
+.plan-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.num {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: var(--surface-2);
+}
+
+.plan[aria-current='true'] .num {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.plan h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.plan .select-btn {
+  all: unset;
+  display: block;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.plan .select-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.fit {
+  color: var(--accent);
+  font-size: 0.86rem;
+  font-weight: 600;
+  margin: 2px 0 0;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.stat {
+  font-size: 0.8rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+
+.explain {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+}
+
+.details {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+  animation: reveal 200ms ease-out;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.timeline li {
+  display: grid;
+  grid-template-columns: 52px 22px 1fr;
+  align-items: start;
+  gap: 8px;
+  font-size: 0.9rem;
+  min-height: 34px;
+}
+
+.timeline time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding-top: 1px;
+}
+
+.timeline .dot {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  height: 100%;
+}
+
+.timeline .dot::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+}
+
+.timeline li:first-child .dot::before {
+  top: 10px;
+}
+
+.timeline li:last-child .dot::before {
+  bottom: calc(100% - 10px);
+}
+
+.timeline .dot i {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.timeline .dot i.pass {
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  background: var(--muted);
+}
+
+.timeline small {
+  color: var(--muted);
+  display: block;
+}
+
+.warnings {
+  margin: 0;
+  padding: 10px 12px 10px 28px;
+  border-radius: 10px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 0.84rem;
+  display: grid;
+  gap: 4px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actions .btn {
+  flex: 1 1 auto;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+  animation: toast 180ms ease-out;
+}
+
+@keyframes toast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+/* ---------- View switch (phone) ---------- */
+.view-switch {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 12px;
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--line);
+}
+
+.view-switch button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.view-switch button[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Map ---------- */
+.map-shell {
+  position: relative;
+  height: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  background: var(--surface-2);
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+.map-status {
+  position: absolute;
+  z-index: 500;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .map .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.6);
+  }
+}
+
+.leaflet-container {
+  font: inherit;
+  background: var(--surface-2);
+}
+
+.pin {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition: transform var(--fast);
+}
+
+.pin:hover {
+  transform: scale(1.15);
+}
+
+.pin.start {
+  background: #111;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+}
+
+.pin.pass {
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border: 3px solid var(--accent);
+}
+
+.place-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(var(--dot), 0.45);
+  border: 2px solid #fff;
+}
+
+/* ---------- Footer ---------- */
+.foot {
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: grid;
+  gap: 8px;
+}
+
+.foot p {
+  margin: 0;
+}
+
+.calib {
+  display: grid;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

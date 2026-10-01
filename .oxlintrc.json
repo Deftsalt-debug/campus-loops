@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "ignorePatterns": ["dist", "out"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  },
+  "overrides": [
+    {
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["react", "react-dom", "react/*", "react-dom/*", "leaflet"], "message": "src/core must stay framework-free so routing can be tested on its own." },
+              { "group": ["../ui/*", "../../ui/*", "../storage/*", "../../storage/*"], "message": "src/core must not depend on UI or browser storage." }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

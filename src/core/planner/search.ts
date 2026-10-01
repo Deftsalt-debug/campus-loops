@@ -1,0 +1,143 @@
+import { fitsOpenWindow } from '../time/clock';
+import type { Edge, Place } from '../types';
+import {
+  isCafeRequirementMet,
+  spendOf,
+  type Itinerary,
+  type Leg,
+  type Limits,
+  type RequestContext,
+  type ScheduledVisit,
+} from './context';
+
+export type RejectReason = 'time' | 'budget' | 'hours' | 'unreachable' | 'requirements';
+
+export interface SearchResult {
+  itineraries: Itinerary[];
+  /** How often each hard limit cut off a branch. Useful for explaining failures. */
+  rejections: Record<RejectReason, number>;
+  /** Number of complete sequences evaluated. */
+  evaluated: number;
+}
+
+/**
+ * Depth-first search over ordered sequences of 1..maxStops distinct
+ * candidates, each joined by the leg the router picked, then home.
+ *
+ * Every prune is safe: costs only grow as stops are added, so a prefix
+ * that already breaks a hard limit cannot be rescued by adding stops.
+ * - time: arrival + dwell + the *shortest possible* way home + buffer > available
+ * - budget: summed upper-bound spend > budget
+ * - hours: a visit doesn't fit its verified window (the prefix's timing is fixed)
+ * - requirements: more required stops are missing than slots remain
+ * With 12 candidates this explores at most 1,464 sequences, usually far fewer.
+ */
+export function searchGenerated(ctx: RequestContext, candidates: Place[], limits: Limits): SearchResult {
+  const rejections: Record<RejectReason, number> = { time: 0, budget: 0, hours: 0, unreachable: 0, requirements: 0 };
+  const itineraries: Itinerary[] = [];
+  let evaluated = 0;
+
+  const visits: ScheduledVisit[] = [];
+  const legs: Leg[] = [];
+
+  const requiredCafes = candidates.filter((p) => ctx.requiredIds.has(p.id) && p.category === 'cafe');
+
+  /** Stops still needed to satisfy required places and the café requirement. */
+  const missingRequired = () => {
+    const visited = (id: string) => visits.some((v) => v.place.id === id);
+    let missing = 0;
+    for (const id of ctx.requiredIds) if (!visited(id)) missing++;
+    // A pending required café will satisfy the café requirement too, so it needs no extra slot.
+    const cafePending = requiredCafes.some((p) => !visited(p.id));
+    if (ctx.requireCafe && !isCafeRequirementMet(visits) && !cafePending) missing++;
+    return missing;
+  };
+
+  const visit = (at: string, elapsedSec: number, spendLow: number, spendHigh: number) => {
+    if (visits.length > 0) {
+      const home = ctx.leg(at, ctx.startNode);
+      if (!home) {
+        rejections.unreachable++;
+      } else if (missingRequired() === 0) {
+        evaluated++;
+        // Check the same total the plan will report, so rounding can't disagree.
+        const itinerary = buildItinerary([...legs, home], [...visits], spendLow, spendHigh, ctx);
+        if (itinerary.totalSec <= limits.availableSec) {
+          itineraries.push(itinerary);
+        } else {
+          rejections.time++;
+        }
+      }
+    }
+    if (visits.length === ctx.maxStops) return;
+    if (missingRequired() > ctx.maxStops - visits.length) {
+      rejections.requirements++;
+      return;
+    }
+
+    for (const place of candidates) {
+      if (visits.some((v) => v.place.id === place.id)) continue;
+      const leg = ctx.leg(at, place.nodeId);
+      if (!leg) {
+        rejections.unreachable++;
+        continue;
+      }
+      const { low, high } = spendOf(place);
+      if (spendHigh + high > limits.budgetInr) {
+        rejections.budget++;
+        continue;
+      }
+      const arriveSec = elapsedSec + leg.seconds;
+      const dwellSec = ctx.dwellSec(place);
+      const departSec = arriveSec + dwellSec;
+      const shortestHome = ctx.toStartLowerBound.dist.get(place.nodeId);
+      if (shortestHome === undefined) {
+        rejections.unreachable++;
+        continue;
+      }
+      if (departSec + shortestHome + ctx.bufferSec > limits.availableSec) {
+        rejections.time++;
+        continue;
+      }
+      if (
+        place.hoursStatus === 'verified' &&
+        !fitsOpenWindow(place.verifiedOpenWindows, ctx.weekday, ctx.nowSec + arriveSec, ctx.nowSec + departSec)
+      ) {
+        rejections.hours++;
+        continue;
+      }
+      visits.push({ place, arriveSec, dwellSec });
+      legs.push(leg);
+      visit(place.nodeId, departSec, spendLow + low, spendHigh + high);
+      visits.pop();
+      legs.pop();
+    }
+  };
+
+  visit(ctx.startNode, 0, 0, 0);
+  return { itineraries, rejections, evaluated };
+}
+
+function buildItinerary(
+  legs: Leg[],
+  visits: ScheduledVisit[],
+  spendLowInr: number,
+  spendHighInr: number,
+  ctx: RequestContext,
+): Itinerary {
+  const edges: Edge[] = legs.flatMap((l) => l.edges);
+  const walkingSec = legs.reduce((sum, l) => sum + l.seconds, 0);
+  const dwellSec = visits.reduce((sum, v) => sum + v.dwellSec, 0);
+  return {
+    id: `g:${visits.map((v) => v.place.id).join('.')}`,
+    kind: 'generated',
+    walkTags: [],
+    edges,
+    visits,
+    walkingSec,
+    dwellSec,
+    totalSec: walkingSec + dwellSec + ctx.bufferSec,
+    spendLowInr,
+    spendHighInr,
+  };
+}
