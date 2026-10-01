@@ -1,4 +1,5 @@
 import { decodeShare } from '../core/share'
+import { isIsoInstant } from '../core/time/clock'
 import type { KeyValueStore } from './calibrationLog'
 
 const KEY = 'campus-loops-saved-v1'
@@ -9,9 +10,11 @@ function valid(value: unknown): value is SavedPlan {
   if (!value || typeof value !== 'object') return false
   const p = value as Record<string, unknown>
   return typeof p.hash === 'string' && decodeShare(p.hash).ok &&
-    typeof p.name === 'string' && p.name.length > 0 && p.name.length <= 240 &&
-    typeof p.savedAt === 'string' && Number.isFinite(Date.parse(p.savedAt))
+    typeof p.name === 'string' && p.name.trim().length > 0 && p.name.length <= 240 &&
+    typeof p.savedAt === 'string' && isIsoInstant(p.savedAt)
 }
+
+const cleanPlan = (p: SavedPlan): SavedPlan => ({ hash: p.hash, name: p.name, savedAt: p.savedAt })
 
 function defaultStore(): KeyValueStore | null {
   try { return globalThis.localStorage ?? null } catch { return null }
@@ -29,7 +32,7 @@ function readSavedPlans(store: KeyValueStore | null): SavedPlan[] | null {
       if (seen.has(p.hash)) return false
       seen.add(p.hash)
       return true
-    }).slice(0, MAX_SAVED_PLANS)
+    }).slice(0, MAX_SAVED_PLANS).map(cleanPlan)
   } catch { return null }
 }
 
@@ -44,7 +47,7 @@ export function savePlan(p: SavedPlan, store: KeyValueStore | null = defaultStor
   const existing = read.filter((s) => s.hash !== p.hash)
   if (existing.length >= MAX_SAVED_PLANS) return 'full'
   try {
-    store.setItem(KEY, JSON.stringify([p, ...existing]))
+    store.setItem(KEY, JSON.stringify([cleanPlan(p), ...existing]))
     return 'saved'
   } catch { return 'unavailable' }
 }

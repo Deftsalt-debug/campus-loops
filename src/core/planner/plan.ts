@@ -152,7 +152,7 @@ function run(
 
   // ---- Search under the real limits ----
   const limits: Limits = { availableSec: context.availableSec, budgetInr: request.budgetInr };
-  const found = findItineraries(dataset, places, ctx, request, limits, config);
+  const found = findItineraries(dataset, places, ctx, request, limits, config, onlyPlanId);
 
   if (found.length > 0) {
     const ranked = found
@@ -162,7 +162,7 @@ function run(
         return { it, m, stopKey, segmentIds: m.segmentIds, score: scoreParts(it, m, request.occasion, request.rain, limits.availableSec) };
       })
       .sort((a, b) => compareScores(a.score, b.score));
-    const chosen = onlyPlanId
+    const chosen = onlyPlanId !== null
       ? ranked.filter((r) => r.it.id === onlyPlanId)
       : pickDiverse(ranked, config.maxResults, config.duplicateOverlap);
     const plans = chosen.map(({ it, m }) =>
@@ -175,9 +175,9 @@ function run(
         occasion: request.occasion,
       }),
     );
-    if (plans.length > 0 || !onlyPlanId) return { plans, blockers: [], context };
+    if (plans.length > 0 || onlyPlanId === null) return { plans, blockers: [], context };
   }
-  if (onlyPlanId) {
+  if (onlyPlanId !== null) {
     return fail({
       code: 'PLAN_OUTDATED',
       message: 'This shared plan no longer fits right now (time, opening hours or data changed). Plan again to get a fresh route.',
@@ -194,17 +194,23 @@ function findItineraries(
   request: PlanRequest,
   limits: Limits,
   config: PlannerConfig,
+  onlyPlanId: string | null = null,
 ): Itinerary[] {
   const candidates = selectCandidates(dataset.places, ctx, {
     budgetInr: limits.budgetInr,
     availableSec: limits.availableSec,
     rain: request.rain,
     occasion: request.occasion,
-    maxCandidates: config.maxCandidates,
+    // A saved route is checked for feasibility, independent of which other
+    // stops happen to rank in the recommendation shortlist right now.
+    maxCandidates: onlyPlanId !== null ? dataset.places.length : config.maxCandidates,
     cafesKeptWhenRequired: config.cafesKeptWhenRequired,
   });
-  const generated = searchGenerated(ctx, candidates, limits).itineraries;
+  const generated = onlyPlanId !== null && !onlyPlanId.startsWith('g:')
+    ? []
+    : searchGenerated(ctx, candidates, limits, onlyPlanId ?? undefined).itineraries;
   const curated = dataset.curatedWalks
+    .filter((w) => onlyPlanId === null || `c:${w.id}` === onlyPlanId)
     .map((w) => evaluateCurated(w, places, ctx, limits, request.rain))
     .flatMap((o) => (o.ok ? [o.itinerary] : []));
   return [...generated, ...curated];

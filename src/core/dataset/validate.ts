@@ -1,6 +1,7 @@
 import { buildGraph } from '../graph/buildGraph';
 import { trueSeconds } from '../graph/edgeCost';
 import { dijkstra } from '../routing/dijkstra';
+import { isPlaceIdentifier, isShareIdentifier } from '../identifiers';
 import { isCalendarDate, isHHMM, parseHHMM } from '../time/clock';
 import type { Dataset, LatLng } from '../types';
 import { datasetShapeIssues } from './shape';
@@ -48,7 +49,11 @@ export function validateDataset(data: Dataset, options: ValidateOptions = {}): I
       return issues;
     }
   }
+  for (const key of ['nodes', 'edges', 'starts'] as const) {
+    if (data[key].length === 0) error('EMPTY_DATASET', `Dataset field "${key}" must contain at least one entry.`);
+  }
   if (!data.datasetVersion) error('SHAPE', 'datasetVersion is missing.');
+  if (!isShareIdentifier(data.datasetVersion)) error('BAD_ID', 'datasetVersion must use 1–120 letters, digits, underscores, dots, colons or hyphens.');
   if (data.timezone !== 'Asia/Kolkata') error('TIMEZONE', 'Only Asia/Kolkata is supported (fixed +05:30 offset).');
   if (!data.licence) error('SHAPE', 'Licence/source notice is missing.');
   if (!Number.isFinite(data.location.lat) || Math.abs(data.location.lat) > 90 || !Number.isFinite(data.location.lng) || Math.abs(data.location.lng) > 180) {
@@ -151,6 +156,7 @@ export function validateDataset(data: Dataset, options: ValidateOptions = {}): I
   // ---- Places ----
   let placeholders = 0;
   for (const p of data.places) {
+    if (!isPlaceIdentifier(p.id)) error('BAD_ID', `Place id "${p.id}" must use 1–120 letters, digits, underscores, colons or hyphens; dots separate stops in shared routes.`);
     if (!nodes.has(p.nodeId)) error('MISSING_REF', `Place ${p.id} refers to missing node ${p.nodeId}.`);
     if (!isNonNegative(p.dwellDefaultMin)) error('BAD_NUMBER', `Place ${p.id} dwell must be finite and nonnegative.`);
     if ((p.spendLowInr === null) !== (p.spendHighInr === null)) {
@@ -186,12 +192,14 @@ export function validateDataset(data: Dataset, options: ValidateOptions = {}): I
 
   // ---- Starts ----
   for (const s of data.starts) {
+    if (!isShareIdentifier(s.id)) error('BAD_ID', `Start id "${s.id}" must use 1–120 letters, digits, underscores, dots, colons or hyphens.`);
     if (!nodes.has(s.nodeId)) error('MISSING_REF', `Start ${s.id} refers to missing node ${s.nodeId}.`);
   }
 
   // ---- Curated walks: continuous, closed, and stops on the route ----
   const edgesById = new Map(data.edges.map((e) => [e.id, e]));
   for (const w of data.curatedWalks) {
+    if (!isShareIdentifier(w.id)) error('BAD_ID', `Walk id "${w.id}" must use 1–120 letters, digits, underscores, dots, colons or hyphens.`);
     checkDate(`Walk ${w.id}`, w.verifiedAt);
     if (!nodes.has(w.startNodeId)) error('MISSING_REF', `Walk ${w.id} starts at a missing node.`);
     if (w.edgeIds.length === 0) error('WALK_CONTINUITY', `Walk ${w.id} has no walking edges.`);

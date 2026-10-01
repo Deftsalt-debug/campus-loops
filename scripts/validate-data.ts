@@ -8,7 +8,7 @@ import type { Dataset } from '../src/core/types';
 
 const args = process.argv.slice(2);
 const production = args.includes('--production');
-const file = args.find((a) => !a.startsWith('--')) ?? 'src/data/fixtures/pilot-fixture.json';
+const file = args.find((a) => !a.startsWith('--')) ?? 'src/data/manipal-demo.json';
 
 let data: Dataset;
 try {

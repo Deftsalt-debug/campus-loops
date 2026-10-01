@@ -1,4 +1,5 @@
 import type { WalkLog } from '../core/calibration';
+import { isIsoInstant } from '../core/time/clock';
 
 // Calibration logs live only in this browser. They never sync between
 // devices and disappear if site data is cleared.
@@ -39,8 +40,7 @@ function isWalkLog(v: unknown): v is WalkLog {
     (o.predictedDwellSec === undefined || isSeconds(o.predictedDwellSec)) &&
     (o.actualDwellSec === undefined || isSeconds(o.actualDwellSec)) &&
     typeof o.loggedAt === 'string' &&
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(o.loggedAt) &&
-    Number.isFinite(Date.parse(o.loggedAt))
+    isIsoInstant(o.loggedAt)
   );
 }
 

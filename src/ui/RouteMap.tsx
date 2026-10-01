@@ -104,7 +104,8 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, onSe
       }
     }
     const onReducedKeys = (event: KeyboardEvent) => {
-      if (!m || !reduced.matches || event.altKey || event.ctrlKey || event.metaKey) return
+      // Arrow keys on a child control or marker belong to that control, not the map.
+      if (!m || event.target !== container || !reduced.matches || event.altKey || event.ctrlKey || event.metaKey) return
       const directions: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
       const direction = directions[event.key]
       if (!direction) return
@@ -318,10 +319,18 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, onSe
   }, [L, dataset, plans, startSec, selectedId, hoveredId])
 
   const selectedName = plans.find((plan) => plan.id === selectedId)?.name
+  const showRoute = () => {
+    const m = map.current
+    const route = selectedId ? routes.current.get(selectedId) : undefined
+    if (!m || !route) return
+    m.stop()
+    m.fitBounds(route.bounds, { padding: [40, 40], maxZoom: Math.min(18, tileConfig.ok ? tileConfig.maxZoom : 19), animate: !prefersReducedMotion() })
+  }
   return (
     <div className="map-shell">
       <p id={instructionsId} className="sr-only">Use the arrow keys to move the map and plus or minus to zoom. Tab to route stops for details. The itinerary also lists every stop.</p>
       <div ref={el} className="map" role="region" aria-label={selectedName ? `Route map: ${selectedName}` : 'Campus route map'} aria-describedby={instructionsId} tabIndex={0} />
+      {selectedName && geometries.some(({ plan, route }) => plan.id === selectedId && route) && L && status !== 'failed' && <button type="button" className="btn map-refit" onClick={showRoute} aria-label={`Show the entire route for ${selectedName}`}>Show entire route</button>}
       {status === 'loading' && tileConfig.ok && <p className="map-status notice" role="status">Loading map…</p>}
       {status === 'failed' && <div className="map-status notice" role="status"><p>The map couldn't load. Use the itinerary list for the route, or reload to try again.</p><button type="button" className="btn" onClick={() => window.location.reload()}>Reload map</button></div>}
       {!tileConfig.ok && status !== 'failed' && <p className="map-status notice" role="status">Map pictures are unavailable: {tileConfig.message} Use the itinerary list.</p>}

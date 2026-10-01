@@ -224,7 +224,9 @@ function PlanDetails({
             className="input small"
             type="number"
             inputMode="numeric"
-            min={1}
+            min={0.1}
+            max={599.9}
+            step="any"
             placeholder={String(Math.round(plan.walkingSec / 60))}
             value={actualMin}
             onChange={(e) => setActualMin(e.target.value)}
@@ -232,7 +234,7 @@ function PlanDetails({
           <span className="hint">walking minutes (planned {mins(plan.walkingSec)})</span>
           <button type="button" className="btn" onPointerDown={ripple} onClick={logWalk}>Save</button>
         </div>
-        <p className="hint">Stays on this device. It helps tune the walking-pace estimates.</p>
+        <p className="hint">Log walking time only, excluding stops and the buffer. Stays on this device for comparison; it does not change future estimates automatically.</p>
       </details>
     </div>
   )

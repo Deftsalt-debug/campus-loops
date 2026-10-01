@@ -34,6 +34,21 @@ describe('saved walks', () => {
     const store = memoryStore(JSON.stringify([saved(), { ...saved(), hash: '#bad' }, { ...saved(), savedAt: 'never' }, { ...saved(), name: '' }, saved()]))
     expect(listSavedPlans(store)).toEqual([saved()])
   })
+  it.each(['2026-02-30T10:00:00Z', '2026-10-01T10:00:00', '2026-10-01', '2026-10-01T24:00:00Z'])(
+    'rejects invalid or timezone-dependent timestamps: %s', (savedAt) => {
+      const store = memoryStore(JSON.stringify([{ ...saved(), savedAt }]))
+      expect(listSavedPlans(store)).toEqual([])
+      expect(savePlan({ ...saved(), savedAt }, store)).toBe('unavailable')
+    },
+  )
+  it('rejects blank names and retains only documented fields', () => {
+    const store = memoryStore(JSON.stringify([{ ...saved(), extraPrivateField: 'not part of the record' }]))
+    expect(listSavedPlans(store)).toEqual([saved()])
+    expect(savePlan({ ...saved(), name: '   ' }, store)).toBe('unavailable')
+    const withExtra = { ...saved(), extraPrivateField: 'not part of the record' }
+    expect(savePlan(withExtra, store)).toBe('saved')
+    expect(JSON.parse(store.value)).toEqual([saved()])
+  })
   it('handles absent and full storage', () => {
     expect(listSavedPlans(null)).toEqual([])
     expect(savePlan(saved(), null)).toBe('unavailable')

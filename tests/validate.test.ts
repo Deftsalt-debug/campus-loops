@@ -20,6 +20,49 @@ describe('validateDataset', () => {
     expect(errorCodes(fixture(), true)).toEqual(['FIXTURE']);
   });
 
+  it('refuses an empty dataset even when it is labelled as production data', () => {
+    const ds = fixture();
+    Object.assign(ds, { isFixture: false, nodes: [], edges: [], starts: [], places: [], curatedWalks: [] });
+    expect(errorCodes(ds, true)).toEqual(['EMPTY_DATASET', 'EMPTY_DATASET', 'EMPTY_DATASET']);
+    expect(() => loadDataset(ds, { production: true })).toThrow(DatasetError);
+  });
+
+  it('requires at least one selectable start even when the graph is populated', () => {
+    const ds = fixture();
+    ds.starts = [];
+    expect(errorCodes(ds)).toContain('EMPTY_DATASET');
+  });
+
+  it('rejects the place-ID collision between one dotted place and an ordered pair', () => {
+    const ds = fixture();
+    const base = ds.places[0];
+    ds.places.push({ ...base, id: 'a' }, { ...base, id: 'b' });
+    expect(errorCodes(ds)).toEqual([]);
+    ds.places.push({ ...base, id: 'a.b' });
+    expect(errorCodes(ds)).toEqual(['BAD_ID']);
+    expect(() => loadDataset(ds)).toThrow(DatasetError);
+  });
+
+  it.each(['with space', 'with\nnewline', 'trailing\n', 'a,b', 'a~b', 'a/b', 'x'.repeat(121)])('rejects a place ID that cannot round-trip in a share link: %s', (id) => {
+    const ds = fixture();
+    ds.places.push({ ...ds.places[0], id });
+    expect(errorCodes(ds)).toContain('BAD_ID');
+  });
+
+  it('retains supported punctuation and the maximum place ID length', () => {
+    const ds = fixture();
+    ds.places.push({ ...ds.places[0], id: 'Cafe_1:west-wing' }, { ...ds.places[0], id: 'x'.repeat(120) });
+    expect(errorCodes(ds)).toEqual([]);
+  });
+
+  it.each(['dataset', 'start', 'curated'] as const)('rejects a %s identifier that cannot be shared', (kind) => {
+    const ds = fixture();
+    if (kind === 'dataset') ds.datasetVersion = 'invalid version';
+    else if (kind === 'start') ds.starts[0].id = 'invalid start';
+    else ds.curatedWalks[0].id = 'x'.repeat(121);
+    expect(errorCodes(ds)).toContain('BAD_ID');
+  });
+
   it.each<[string, (ds: Dataset) => void, string]>([
     ['duplicate node ids', (ds) => ds.nodes.push({ ...ds.nodes[0] }), 'DUPLICATE_ID'],
     ['an edge to a missing node', (ds) => (ds.edges[0].to = 'ghost'), 'MISSING_REF'],

@@ -70,6 +70,40 @@ describe('hard limits', () => {
 });
 
 describe('required places and the café requirement', () => {
+  it('rebuilds a feasible saved route when new opening hours change the recommendation shortlist', () => {
+    const ds = tinyDataset(['S', 'P', 'Q'], [...twoWay('sp', 'S', 'P', 100), ...twoWay('sq', 'S', 'Q', 100)], [
+      { id: 'bench', nodeId: 'P' },
+      { id: 'cafe', nodeId: 'Q', category: 'cafe', tags: ['group'], hoursStatus: 'verified',
+        verifiedOpenWindows: [{ day: 4, start: '12:00', end: '17:00' }] },
+    ]);
+    const config = { ...DEFAULT_CONFIG, maxCandidates: 1 };
+    const req = exactRequest({ durationMin: 30 });
+    const [saved] = plan(ds, req, THU_10AM, config).plans;
+    expect(saved.id).toBe('g:bench');
+    const later = ist('2026-10-01', '12:00');
+    expect(plan(ds, req, later, config).plans[0].id).toBe('g:cafe');
+    const rebuilt = rebuildPlan(ds, req, later, saved.id, config);
+    expect(rebuilt.blockers).toEqual([]);
+    expect(rebuilt.plans).toHaveLength(1);
+    expect(rebuilt.plans[0].edgeIds).toEqual(saved.edgeIds);
+    expect(rebuilt.plans[0].visits).toEqual(saved.visits);
+  });
+
+  it('still rejects a saved stop when its opening hours no longer fit', () => {
+    const ds = exactDataset();
+    ds.places[0].hoursStatus = 'verified';
+    ds.places[0].verifiedOpenWindows = [{ day: 4, start: '09:00', end: '11:00' }];
+    expect(rebuildPlan(ds, exactRequest(), ist('2026-10-01', '12:00'), 'g:bench').blockers[0].code).toBe('PLAN_OUTDATED');
+  });
+
+  it('never substitutes a fresh recommendation for an empty or unknown saved-plan ID', () => {
+    for (const id of ['', 'g:missing', 'c:missing']) {
+      const result = rebuildPlan(exactDataset(), exactRequest(), THU_10AM, id);
+      expect(result.plans).toEqual([]);
+      expect(result.blockers[0].code).toBe('PLAN_OUTDATED');
+    }
+  });
+
   it('does not let impossible distant stops crowd a feasible stop out of the candidate cap', () => {
     const far = Array.from({ length: 12 }, (_, i) => `F${i}`);
     const ds = tinyDataset(['S', ...far, 'P'], [

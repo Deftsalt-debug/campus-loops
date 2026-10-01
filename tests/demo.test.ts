@@ -36,6 +36,19 @@ describe('Manipal demo dataset', () => {
     expect(demo.licence).toContain('ODbL');
   });
 
+  it('offers both Food Courts as starts at their mapped stop anchors', () => {
+    for (const id of ['food_court_1', 'food_court_2']) {
+      expect(demo.starts.find((start) => start.id === id)?.nodeId).toBe(demo.places.find((place) => place.id === id)?.nodeId);
+    }
+  });
+
+  it('never describes assumed free stops or all-day availability as sourced facts', () => {
+    for (const place of demo.places) {
+      if (place.hoursStatus === 'always') expect(place.hoursSource).toBe('placeholder');
+      expect(place.spendSource).toBe('placeholder');
+    }
+  });
+
   // A typical weekday morning: every start and every mode should find something honest.
   it.each(demo.starts.flatMap((s) => OCCASION_IDS.map((o) => [s.id, o] as const)))('plans from %s for %s', (startId, occasion) => {
     const d = OCCASIONS[occasion].defaults;

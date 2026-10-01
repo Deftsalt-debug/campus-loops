@@ -5,8 +5,8 @@
 //   npm run data:osm -- --elevation   fetch missing node elevations (OpenTopoData SRTM 30 m, cached)
 //
 // The result is a DEMO, not a verified pilot dataset:
-// - Paths are real OSM ways but have not been walked. Covered paths and steps aren't
-//   tagged in OSM here, so every edge is open and stepless until surveyed.
+// - Paths are real OSM ways but have not been walked. Missing covered/step tags
+//   are not proof that a route is sheltered or accessible.
 // - Places are real OSM features anchored to the nearest path node, not a surveyed entrance.
 // - Hours come from OSM `opening_hours` where present, otherwise placeholders. Prices
 //   are placeholder ranges. Each place records which, and plans show a warning.
@@ -15,15 +15,19 @@
 // Data © OpenStreetMap contributors, available under the ODbL (openstreetmap.org/copyright).
 // Elevation: SRTM 30 m via OpenTopoData (opentopodata.org).
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { Dataset, DataSource, Edge, GraphNode, LatLng, OpenWindow, Place, PlaceCategory } from '../src/core/types';
+import { validateDataset } from '../src/core/dataset/validate';
+import type { Dataset, Edge, GraphNode, LatLng, Place, PlaceCategory } from '../src/core/types';
+import { isPedestrianAllowed, pedestrianDirections, resolvePlaceHours } from './osm-rules';
 
 const BBOX = { minLng: 74.786, minLat: 13.3395, maxLng: 74.7985, maxLat: 13.3555 };
 const RAW = 'data/osm/raw.json';
+const METADATA = 'data/osm/snapshot.json';
 const ELEVATION_CACHE = 'data/osm/elevation.json';
 const OUT = 'src/data/manipal-demo.json';
-const SNAPSHOT_DATE = '2026-10-01';
 const USER_AGENT = 'CampusLoops/0.2 (student project; https://github.com/Deftsalt-debug/campus-loops)';
+const SNAPSHOT_URL = `https://api.openstreetmap.org/api/0.6/map.json?bbox=${BBOX.minLng},${BBOX.minLat},${BBOX.maxLng},${BBOX.maxLat}`;
 
 const WALKABLE = new Set([
   'footway', 'path', 'pedestrian', 'steps', 'living_street', 'residential', 'service', 'unclassified',
@@ -63,10 +67,10 @@ const PLACES: PlaceSpec[] = [
   { osm: 'w408586525', id: 'chef_plates', category: 'cafe', tags: ['cozy', 'group', 'sheltered'], dwellMin: 45, spend: [300, 600], placeholderHours: ['11:00', '22:30'] },
   { osm: 'w1493868574', id: 'adithya_mess', category: 'cafe', tags: ['snacks', 'quick', 'sheltered'], dwellMin: 25, spend: [80, 180], placeholderHours: ['07:30', '22:00'] },
   { osm: 'n6641211421', id: 'student_plaza', category: 'landmark', tags: ['iconic', 'photo', 'group', 'lively', 'seating'], dwellMin: 10, spend: 'free' },
-  { osm: 'n3684798238', id: 'central_library', category: 'landmark', tags: ['iconic', 'photo', 'quiet'], dwellMin: 5, spend: 'free' },
+  { osm: 'n3684798238', id: 'central_library', name: 'MIT Central Library (outside)', category: 'landmark', tags: ['iconic', 'photo', 'quiet'], dwellMin: 5, spend: 'free' },
   { osm: 'w364433913', id: 'library_lawns', name: 'Lawns east of Central Library', category: 'seating', tags: ['seating', 'nature', 'scenic', 'quiet', 'conversation', 'shade'], dwellMin: 15, spend: 'free' },
   { osm: 'w186259462', id: 'kmc_greens', category: 'seating', tags: ['seating', 'nature', 'scenic', 'group', 'photo'], dwellMin: 15, spend: 'free' },
-  { osm: 'w246982718', id: 'planetarium', category: 'landmark', tags: ['iconic', 'photo'], dwellMin: 5, spend: 'free' },
+  { osm: 'w246982718', id: 'planetarium', name: 'Dr. TMA Pai Planetarium (outside)', category: 'landmark', tags: ['iconic', 'photo'], dwellMin: 5, spend: 'free' },
   { osm: 'n1969584177', id: 'tiger_circle_fountain', name: 'Fountain near Tiger Circle', category: 'waypoint', tags: ['photo'], dwellMin: 0, spend: 'free' },
 ];
 
@@ -87,32 +91,36 @@ function haversine([lat1, lng1]: LatLng, [lat2, lng2]: LatLng): number {
   return 2 * 6_371_000 * Math.asin(Math.sqrt(a));
 }
 
-const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-/** Parse only simple OSM opening_hours such as "Mo-Su 08:00-23:00" or "Mo-Sa 09:00-21:00; Su 10:00-20:00". */
-export function parseOpeningHours(value: string): OpenWindow[] | null {
-  if (value.trim() === '24/7') return DAYS.map((_d, day) => ({ day, start: '00:00', end: '23:59' }));
-  const windows: OpenWindow[] = [];
-  for (const rule of value.split(';').map((r) => r.trim()).filter(Boolean)) {
-    const m = /^((?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?) (\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(rule);
-    if (!m) return null; // anything more complex: don't guess
-    const [from, to = from] = m[1].split('-');
-    // OSM weeks run Monday..Sunday; map to 0 = Sunday indices.
-    const order = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-    const a = order.indexOf(from);
-    const b = order.indexOf(to);
-    if (a > b) return null;
-    const end = m[3] === '24:00' ? '23:59' : m[3];
-    for (let i = a; i <= b; i++) windows.push({ day: DAYS.indexOf(order[i]), start: m[2], end });
-  }
-  return windows.length ? windows : null;
-}
-
 async function fetchSnapshot() {
-  const url = `https://api.openstreetmap.org/api/0.6/map.json?bbox=${BBOX.minLng},${BBOX.minLat},${BBOX.maxLng},${BBOX.maxLat}`;
-  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+  const res = await fetch(SNAPSHOT_URL, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(60_000) });
   if (!res.ok) throw new Error(`OSM API returned ${res.status}`);
-  writeFileSync(RAW, await res.text());
+  const text = await res.text();
+  const snapshot = JSON.parse(text) as { elements?: { timestamp?: string }[] };
+  if (!Array.isArray(snapshot.elements) || snapshot.elements.length === 0) throw new Error('OSM returned an empty or invalid snapshot');
+  const retrievedAt = new Date().toISOString();
+  const metadata = {
+    sourceUrl: SNAPSHOT_URL,
+    retrievedAt,
+    checkedLiveOn: retrievedAt.slice(0, 10),
+    sha256: createHash('sha256').update(text).digest('hex'),
+    latestElementEdit: snapshot.elements.map((e) => e.timestamp ?? '').sort().at(-1),
+    fieldVerified: false,
+  };
+  // OSM nodes can move while retaining their IDs. Never reuse a height sampled
+  // at an old coordinate after refreshing geometry.
+  if (existsSync(ELEVATION_CACHE) && existsSync(RAW)) {
+    const previous = JSON.parse(readFileSync(RAW, 'utf8')) as { elements: OsmElement[] };
+    const current = new Map((snapshot.elements as OsmElement[]).filter((e) => e.type === 'node').map((e) => [e.id, e as OsmNode]));
+    const cache = JSON.parse(readFileSync(ELEVATION_CACHE, 'utf8')) as Record<string, number>;
+    for (const old of previous.elements) {
+      if (old.type !== 'node') continue;
+      const next = current.get(old.id);
+      if (!next || next.lat !== old.lat || next.lon !== old.lon) delete cache[`n${old.id}`];
+    }
+    writeFileSync(ELEVATION_CACHE, JSON.stringify(cache, null, 1) + '\n');
+  }
+  writeFileSync(RAW, text);
+  writeFileSync(METADATA, JSON.stringify(metadata, null, 2) + '\n');
   console.log(`Saved ${RAW}`);
 }
 
@@ -121,7 +129,7 @@ async function fetchElevations(points: Map<string, LatLng>, cache: Record<string
   for (let i = 0; i < missing.length; i += 100) {
     const batch = missing.slice(i, i + 100);
     const locations = batch.map(([, [lat, lng]]) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join('|');
-    const res = await fetch(`https://api.opentopodata.org/v1/srtm30m?locations=${locations}`, { headers: { 'User-Agent': USER_AGENT } });
+    const res = await fetch(`https://api.opentopodata.org/v1/srtm30m?locations=${locations}`, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(30_000) });
     if (!res.ok) throw new Error(`OpenTopoData returned ${res.status}`);
     const body = (await res.json()) as { results: { elevation: number | null }[] };
     body.results.forEach((r, j) => {
@@ -135,21 +143,23 @@ async function fetchElevations(points: Map<string, LatLng>, cache: Record<string
 
 // ---- Main ----
 const args = process.argv.slice(2);
+if (args.some((arg) => !['--fetch', '--elevation'].includes(arg))) throw new Error('Supported options: --fetch, --elevation');
 if (args.includes('--fetch') || !existsSync(RAW)) await fetchSnapshot();
 
-const raw = JSON.parse(readFileSync(RAW, 'utf8')) as { elements: OsmElement[] };
+const rawText = readFileSync(RAW, 'utf8');
+const metadata = JSON.parse(readFileSync(METADATA, 'utf8')) as { retrievedAt: string; sha256: string; sourceUrl: string };
+if (createHash('sha256').update(rawText).digest('hex') !== metadata.sha256 || metadata.sourceUrl !== SNAPSHOT_URL) {
+  throw new Error('Snapshot provenance does not match raw.json; run data:osm -- --fetch to refresh both');
+}
+const snapshotDate = metadata.retrievedAt.slice(0, 10);
+if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshotDate) || !Number.isFinite(Date.parse(metadata.retrievedAt))) throw new Error('Invalid snapshot retrieval date');
+const raw = JSON.parse(rawText) as { elements: OsmElement[] };
 const osmNodes = new Map<number, OsmNode>();
 const osmWays = new Map<number, OsmWay>();
 for (const e of raw.elements) {
   if (e.type === 'node') osmNodes.set(e.id, e);
   else if (e.type === 'way') osmWays.set(e.id, e);
 }
-
-const isAllowed = (t: Record<string, string>) => {
-  if (t.foot === 'no') return false;
-  if ((t.access === 'private' || t.access === 'no') && !['yes', 'designated', 'permissive'].includes(t.foot ?? '')) return false;
-  return true;
-};
 
 const walkWays = [...osmWays.values()].filter(
   (w) => w.tags && WALKABLE.has(w.tags.highway) && w.tags.area !== 'yes' && w.nodes.every((n) => osmNodes.has(n)),
@@ -162,7 +172,11 @@ for (const w of walkWays) {
 }
 
 // Anchors may only sit on ways people are allowed to walk.
-const wayNodeIds = [...new Set(walkWays.filter((w) => isAllowed(w.tags!)).flatMap((w) => w.nodes))];
+const segmentAllowed = (tags: Record<string, string>, points: number[]) => {
+  const direction = pedestrianDirections(tags);
+  return (direction.forward || direction.reverse) && points.every((id) => isPedestrianAllowed(osmNodes.get(id)?.tags ?? {}));
+};
+const wayNodeIds = [...new Set(walkWays.filter((w) => segmentAllowed(w.tags!, w.nodes)).flatMap((w) => w.nodes))];
 function nearestWayNode(lat: number, lng: number): { id: number; distance: number } {
   let best = { id: -1, distance: Infinity };
   for (const id of wayNodeIds) {
@@ -194,8 +208,13 @@ const placeAnchors = PLACES.map((spec) => {
   anchors.add(near.id);
   return { spec, anchor: near.id, distance: near.distance };
 });
-const startAnchors = STARTS.map(([id, name, lat, lng]) => {
+const foodCourtStarts: typeof STARTS = [
+  ['food_court_1', 'MIT Food Court 1', ...centre('w186260324')],
+  ['food_court_2', 'MIT Food Court 2', ...centre('w1174034502')],
+];
+const startAnchors = [...STARTS, ...foodCourtStarts].map(([id, name, lat, lng]) => {
   const near = nearestWayNode(lat, lng);
+  if (near.distance > 120) throw new Error(`Start ${id} is ${Math.round(near.distance)} m from any path`);
   anchors.add(near.id);
   return { id, name, anchor: near.id, distance: near.distance };
 });
@@ -219,9 +238,11 @@ for (const w of walkWays) {
   }
 }
 
-// Keep only the largest connected component (undirected), so nothing is silently cut off.
+// Restricted segments must not connect otherwise unreachable public components.
+const allowedSegments = segments.filter((s) => segmentAllowed(s.tags, s.points));
+// Keep the largest accessible connected component; validate directed return paths below.
 const adjacency = new Map<number, number[]>();
-for (const s of segments) {
+for (const s of allowedSegments) {
   adjacency.set(s.from, [...(adjacency.get(s.from) ?? []), s.to]);
   adjacency.set(s.to, [...(adjacency.get(s.to) ?? []), s.from]);
 }
@@ -243,10 +264,13 @@ for (const startNode of adjacency.keys()) {
   }
   if (component.size > largest.size) largest = component;
 }
-const kept = segments.filter((s) => largest.has(s.from));
+const kept = allowedSegments.filter((s) => largest.has(s.from));
 const keptNodeIds = new Set(kept.flatMap((s) => [s.from, s.to]));
 for (const { spec, anchor } of placeAnchors) {
   if (!keptNodeIds.has(anchor)) throw new Error(`${spec.id} anchors outside the main network`);
+}
+for (const { id, anchor } of startAnchors) {
+  if (!keptNodeIds.has(anchor)) throw new Error(`Start ${id} anchors outside the main network`);
 }
 
 // ---- Elevation (cached; fetched only with --elevation) ----
@@ -262,7 +286,7 @@ const nodes: GraphNode[] = [...keptNodeIds]
     return { id: `n${id}`, lat: n.lat, lng: n.lon, ...(elevationM !== undefined ? { elevationM } : {}) };
   });
 
-const SOURCE = `OpenStreetMap snapshot ${SNAPSHOT_DATE} (unreviewed)`;
+const SOURCE = `OpenStreetMap snapshot ${snapshotDate} (not field-verified)`;
 const edges: Edge[] = [];
 for (const s of kept) {
   const geometry = s.points.map((id) => [osmNodes.get(id)!.lat, osmNodes.get(id)!.lon] as LatLng);
@@ -273,36 +297,23 @@ for (const s of kept) {
     segmentId: s.segmentId,
     meters: Math.round(meters * 10) / 10,
     delaySeconds: 0,
-    allowed: isAllowed(t),
+    allowed: true,
     steps: t.highway === 'steps',
     covered: t.covered === 'yes' || t.covered === 'arcade' || t.tunnel === 'building_passage',
-    verifiedAt: SNAPSHOT_DATE,
+    verifiedAt: snapshotDate,
     source: SOURCE,
   };
   // Vehicle one-way rules don't bind pedestrians; only explicit foot one-ways do.
-  const footOneWay = t['oneway:foot'] === 'yes' || (['footway', 'path', 'steps'].includes(t.highway) && t.oneway === 'yes');
-  edges.push({ id: `${s.segmentId}:f`, from: `n${s.from}`, to: `n${s.to}`, geometry, ...base });
-  if (!footOneWay) edges.push({ id: `${s.segmentId}:r`, from: `n${s.to}`, to: `n${s.from}`, geometry: [...geometry].reverse(), ...base });
+  const direction = pedestrianDirections(t);
+  if (direction.forward) edges.push({ id: `${s.segmentId}:f`, from: `n${s.from}`, to: `n${s.to}`, geometry, ...base });
+  if (direction.reverse) edges.push({ id: `${s.segmentId}:r`, from: `n${s.to}`, to: `n${s.from}`, geometry: [...geometry].reverse(), ...base });
 }
 
 const places: Place[] = placeAnchors.map(({ spec, anchor, distance }) => {
   const osmId = Number(spec.osm.slice(1));
   const tags = (spec.osm[0] === 'n' ? osmNodes.get(osmId)?.tags : osmWays.get(osmId)?.tags) ?? {};
   const name = spec.name ?? tags.name ?? spec.id;
-  const parsed = tags.opening_hours ? parseOpeningHours(tags.opening_hours) : null;
-  const outdoorFree = spec.spend === 'free' && !spec.placeholderHours;
-  let hoursStatus: Place['hoursStatus'] = 'always';
-  let windows: OpenWindow[] = [];
-  let hoursSource: DataSource = 'osm';
-  if (!outdoorFree) {
-    hoursStatus = 'verified';
-    if (parsed) windows = parsed;
-    else {
-      const [start, end] = spec.placeholderHours ?? ['09:00', '21:00'];
-      windows = DAYS.map((_d, day) => ({ day, start, end }));
-      hoursSource = 'placeholder';
-    }
-  }
+  const hours = resolvePlaceHours(tags.opening_hours, spec.placeholderHours, spec.spend === 'free' && !spec.placeholderHours);
   return {
     id: spec.id,
     name,
@@ -312,24 +323,22 @@ const places: Place[] = placeAnchors.map(({ spec, anchor, distance }) => {
     spendLowInr: spec.spend === 'free' ? 0 : spec.spend[0],
     spendHighInr: spec.spend === 'free' ? 0 : spec.spend[1],
     tags: spec.tags,
-    verifiedOpenWindows: windows,
-    hoursStatus,
-    hoursSource,
-    spendSource: spec.spend === 'free' ? 'osm' : 'placeholder',
-    verifiedAt: SNAPSHOT_DATE,
+    ...hours,
+    spendSource: 'placeholder',
+    verifiedAt: snapshotDate,
     source: `OSM ${spec.osm[0] === 'n' ? 'node' : 'way'} ${osmId}; anchored to path node ${Math.round(distance)} m away (entrance not surveyed)`,
   };
 });
 
 const dataset: Dataset = {
-  datasetVersion: `manipal-demo-${SNAPSHOT_DATE}`,
+  datasetVersion: `manipal-demo-${snapshotDate}-r2-${metadata.sha256.slice(0, 8)}`,
   timezone: 'Asia/Kolkata',
   isFixture: true,
   location: { lat: 13.3475, lng: 74.7925 },
   supportedWindow: { start: '06:30', end: '19:00' },
   licence:
     'Paths and places © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright). Elevation: SRTM 30 m via OpenTopoData. ' +
-    'Prices are placeholders and hours are from OSM or placeholders. Not field-verified; demo only.',
+    'Prices, free stops and outdoor availability are placeholders; other hours are from OSM or placeholders. Not field-verified; demo only.',
   sources: ['OpenStreetMap', 'SRTM via OpenTopoData', 'placeholder estimates'],
   starts: startAnchors.map(({ id, name, anchor }) => ({ id, name, nodeId: `n${anchor}` })),
   nodes,
@@ -338,11 +347,13 @@ const dataset: Dataset = {
   curatedWalks: [],
 };
 
+const errors = validateDataset(dataset).filter((issue) => issue.level === 'error');
+if (errors.length) throw new Error(`Generated dataset is invalid:\n${errors.map((issue) => issue.message).join('\n')}`);
 writeFileSync(OUT, JSON.stringify(dataset) + '\n');
 const elevated = nodes.filter((n) => n.elevationM !== undefined).length;
 console.log(
   `Wrote ${OUT}: ${nodes.length} nodes (${elevated} with elevation), ${edges.length} arcs from ${kept.length} segments ` +
-    `(dropped ${segments.length - kept.length} disconnected), ${places.length} places, ${STARTS.length} starts`,
+    `(dropped ${segments.length - kept.length} restricted/disconnected), ${places.length} places, ${startAnchors.length} starts`,
 );
 for (const s of startAnchors) console.log(`  start ${s.name}: snapped ${Math.round(s.distance)} m`);
 for (const p of placeAnchors) console.log(`  place ${p.spec.id}: snapped ${Math.round(p.distance)} m`);

@@ -25,6 +25,9 @@ export function mapTileConfiguration(env: TileEnvironment): TileConfiguration {
   if (!['{z}', '{x}', '{y}'].every((coordinate) => url.includes(coordinate))) {
     return { ok: false, message: 'The map tile address must include {z}, {x} and {y}.' }
   }
+  if (/[{}]/.test(url.replace(/\{[zxysr]\}/g, ''))) {
+    return { ok: false, message: 'The map tile address has an unsupported or incomplete placeholder.' }
+  }
   try {
     // Replace Leaflet template parameters before checking the address. Relative
     // addresses are deliberately limited to the current site's origin.

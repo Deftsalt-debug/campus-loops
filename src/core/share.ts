@@ -1,5 +1,6 @@
 import { isOccasion } from './planner/occasions';
 import { DEFAULT_CONFIG } from './planner/config';
+import { isPlaceIdentifier, isShareIdentifier } from './identifiers';
 import { isHHMM, isIsoInstant } from './time/clock';
 import type { PlanRequest } from './types';
 
@@ -9,8 +10,14 @@ import type { PlanRequest } from './types';
 
 export const SHARE_VERSION = '1';
 const MAX_LENGTH = 2000;
-const ID = /^[A-Za-z0-9_.:-]{1,120}$/;
 const DECIMAL = /^\d+(?:\.\d+)?$/;
+
+function isPlanIdentifier(id: string): boolean {
+  if (id.startsWith('c:')) return isShareIdentifier(id.slice(2));
+  if (!id.startsWith('g:')) return false;
+  const stops = id.slice(2).split('.');
+  return stops.length <= DEFAULT_CONFIG.maxStops && stops.every(isPlaceIdentifier);
+}
 
 export interface SharedPlan {
   datasetVersion: string;
@@ -63,9 +70,9 @@ export function decodeShare(hash: string): DecodeResult {
   const d = p.get('d') ?? '';
   const s = p.get('s') ?? '';
   const id = p.get('id') ?? '';
-  if (!ID.test(d)) return bad('dataset');
-  if (!ID.test(s)) return bad('start');
-  if (!ID.test(id)) return bad('plan id');
+  if (!isShareIdentifier(d)) return bad('dataset');
+  if (!isShareIdentifier(s)) return bad('start');
+  if (!isPlanIdentifier(id)) return bad('plan id');
   const occasion = p.get('o');
   if (!isOccasion(occasion)) return bad('occasion');
   const pace = p.get('p');
@@ -80,7 +87,7 @@ export function decodeShare(hash: string): DecodeResult {
   if (durationMin === null) return bad('duration');
   if (budgetInr === null) return bad('budget');
   const required = p.get('r') ? p.get('r')!.split(',') : [];
-  if (required.length > DEFAULT_CONFIG.maxRequired || required.some((x) => !ID.test(x)) || new Set(required).size !== required.length) return bad('stop list');
+  if (required.length > DEFAULT_CONFIG.maxRequired || required.some((x) => !isPlaceIdentifier(x)) || new Set(required).size !== required.length) return bad('stop list');
   const backBy = p.get('k') ?? undefined;
   if (backBy !== undefined && !isHHMM(backBy)) return bad('back-by time');
   const bufferMin = p.has('f') ? num('f', 0, 30) : undefined;
@@ -90,7 +97,7 @@ export function decodeShare(hash: string): DecodeResult {
     const parts = pair.split('~');
     const [pid, m] = parts;
     const minutes = Number(m);
-    if (parts.length !== 2 || !ID.test(pid ?? '') || !DECIMAL.test(m ?? '') || !Number.isFinite(minutes) || minutes < 0 || minutes > DEFAULT_CONFIG.maxDwellMin || Object.hasOwn(dwellOverridesMin, pid)) {
+    if (parts.length !== 2 || !isPlaceIdentifier(pid ?? '') || !DECIMAL.test(m ?? '') || !Number.isFinite(minutes) || minutes < 0 || minutes > DEFAULT_CONFIG.maxDwellMin || Object.hasOwn(dwellOverridesMin, pid)) {
       return bad('stop time');
     }
     dwellOverridesMin[pid] = minutes;

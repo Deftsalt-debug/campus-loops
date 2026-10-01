@@ -32,6 +32,8 @@ describe('calibration storage boundaries', () => {
     { actualDwellSec: -5 },
     { loggedAt: 'today' },
     { loggedAt: '2026-10-01T10:00:00' },
+    { loggedAt: '2026-02-30T10:00:00Z' },
+    { loggedAt: '2026-10-01T24:00:00Z' },
     { pace: 'fast' },
   ])('drops malformed stored fields: %j', (patch) => {
     const store = memoryStore([{ ...valid, ...patch }]);

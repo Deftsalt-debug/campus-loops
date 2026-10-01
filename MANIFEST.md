@@ -109,14 +109,16 @@ All tunable numbers (pace, climb cost, rain penalty, buffer, caps) are in `src/c
 
 | Item | Source | Trust |
 |---|---|---|
-| Paths (398 junctions, 496 segments) | OSM ways | Real geometry, **not walked**. Private roads (`access=private`) are kept but never routed. |
+| Paths (390 junctions, 485 segments) | OSM ways | Real geometry, **not walked**. Recorded restricted paths and disconnected segments are omitted; missing restrictions still need a local survey. |
 | Elevation | SRTM 30 m (OpenTopoData), cached in `data/osm/elevation.json` | Rough: ±a few metres of noise per point |
 | Places (18) | OSM features chosen by hand in `PLACES` in the import script | Real names and locations. Each is attached to the nearest path node (≤42 m away), not a surveyed entrance |
-| Opening hours | OSM `opening_hours` where simple (Starbucks, Hadika, Apoorva Mess, Chef Plates), otherwise **placeholders** | Each plan says which |
+| Opening hours | Supported simple OSM `opening_hours`; **placeholders** only when absent | Unsupported explicit hours leave a stop unavailable. Free-stop and outdoor availability assumptions are also labelled placeholders. |
 | Prices | **Placeholders** (per-person ranges) | Each plan says so |
 | Covered paths, steps | Not tagged in OSM here | Rain mode currently relies only on sheltered *stops*; Avoid steps has nothing to remove yet |
 
 The synthetic fixture (`src/data/fixtures/pilot-fixture.json`, made-up "Fixture Café A" grid) is only for tests.
+
+The current app has six starts, including Food Court 1 and Food Court 2, plus searchable campus stops and a selectable return buffer. Snapshot checksum, live-source comparison and refresh instructions are in [data/osm/README.md](data/osm/README.md). The library and planetarium stops refer to their exteriors; entry is not promised.
 
 **Production guard:** `npm run data:check -- <file> --production` fails on demo data and on any placeholder hours or prices. Use it before you call anything "verified".
 
@@ -124,7 +126,7 @@ The synthetic fixture (`src/data/fixtures/pilot-fixture.json`, made-up "Fixture 
 1. Walk the area. For each path, note steps, cover and any restrictions. For each place, note its real entrance, price range and opening hours, and the date you checked.
 2. Edit the `PLACES` list in `scripts/import-osm.ts` (or the generated JSON). Set `hoursSource`/`spendSource` to `'survey'` once checked.
 3. Fix or add OSM data upstream if you can. It helps everyone, and the next `--fetch` will pick it up.
-4. Run `npm run data:check -- --production` until it passes, then set `isFixture: false`.
+4. Set `isFixture: false` only after completing the field verification, then require `npm run data:check -- --production` to pass before claiming verified routes.
 
 ---
 
@@ -139,13 +141,13 @@ src/core/            framework-free logic (lint blocks React imports here)
   time/              clock.ts (IST), sun.ts (sunrise/sunset)
   export/            googleMaps.ts, files.ts (KML, GPX, text)
   dataset/           validate.ts, load.ts
-  geo.ts, share.ts, calibration.ts, types.ts
+  geo.ts, share.ts, identifiers.ts, calibration.ts, types.ts
 src/ui/              PlanForm, PlanCard, RouteMap (Leaflet), Backdrop (dot grid), effects, format
-src/storage/         calibrationLog.ts (localStorage, fails safely)
+src/storage/         calibrationLog.ts, savedPlans.ts (localStorage, fail safely)
 src/data/            manipal-demo.json, fixtures/pilot-fixture.json
-scripts/             import-osm.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
-data/osm/            raw OSM snapshot + elevation cache (ODbL)
-tests/               10 files, ~1,300 tests
+scripts/             import-osm.ts, osm-rules.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
+data/osm/            raw OSM snapshot, provenance + elevation cache (ODbL)
+tests/               17 files, 1,524 tests at the current QA checkpoint
 .github/workflows/   deploy.yml (verify → build → GitHub Pages)
 ROADMAP.md           product plan, decisions, weekly checklists
 ```
@@ -154,7 +156,9 @@ ROADMAP.md           product plan, decisions, weekly checklists
 
 ## 8. Quality assurance performed
 
-**Automated:** 1,314 tests across 10 files, all passing, plus lint, typecheck and production build (`npm run verify`). Highlights:
+Current automated and browser results are recorded in [RELEASE.md](RELEASE.md). The following is the original implementation baseline, retained for context.
+
+**Original automated baseline:** 1,314 tests across 10 files, all passing, plus lint, typecheck and production build (`npm run verify`). Highlights:
 - Dijkstra compared against brute force on 200 random graphs.
 - A matrix of **1,152 requests** (2 starts × 4 durations × 3 budgets × 8 modes × rain on/off × 3 times of day). For every plan it checks that the route is continuous and closed, totals add up, nothing breaks a hard limit, the mode's stop cap holds, and **the share link rebuilds the identical plan**.
 - Every start × every mode on the real demo data.

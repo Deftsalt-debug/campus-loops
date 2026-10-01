@@ -34,6 +34,14 @@ describe('public map tile configuration', () => {
     expect(mapTileConfiguration({ VITE_MAP_TILE_URL: 'https://example.org/{z}/{x}', VITE_MAP_TILE_ATTRIBUTION: 'Example maps' }).ok).toBe(false)
   })
 
+  it.each(['https://example.org/{z}/{x}/{y}?key={apiKey}', 'https://example.org/{z}/{x}/{y}/{broken', 'https://example.org/{z}/{x}/{y}/oops}'])('rejects templates that would fail inside Leaflet: %s', (url) => {
+    expect(mapTileConfiguration({ VITE_MAP_TILE_URL: url, VITE_MAP_TILE_ATTRIBUTION: 'Example maps' })).toEqual({ ok: false, message: 'The map tile address has an unsupported or incomplete placeholder.' })
+  })
+
+  it('accepts the supported subdomain and retina placeholders', () => {
+    expect(mapTileConfiguration({ VITE_MAP_TILE_URL: 'https://{s}.example.org/{z}/{x}/{y}{r}.png', VITE_MAP_TILE_ATTRIBUTION: 'Example maps' }).ok).toBe(true)
+  })
+
   it.each(['0', '23', 'NaN', 'Infinity', '18.5', '-1'])('rejects invalid zoom limits: %s', (zoom) => {
     expect(mapTileConfiguration({ VITE_MAP_TILE_MAX_ZOOM: zoom }).ok).toBe(false)
   })

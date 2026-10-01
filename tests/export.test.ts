@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { planToGpx, planToKml, planToText } from '../src/core/export/files';
+import { loadDataset } from '../src/core/dataset/load';
 import { googleMapsDirectionsUrl, MAX_WAYPOINTS } from '../src/core/export/googleMaps';
 import { haversineM, planGeometry } from '../src/core/geo';
 import { plan, rebuildPlan } from '../src/core/planner/plan';
@@ -110,6 +111,41 @@ describe('file exports', () => {
 });
 
 describe('share links', () => {
+  it('round-trips and uniquely rebuilds three maximum-length place IDs', () => {
+    const ids = ['a', 'b', 'c'].map((letter) => letter.repeat(120));
+    const longIds = tinyDataset(['S', 'P', 'Q', 'R'], [
+      ...twoWay('sp', 'S', 'P', 100), ...twoWay('sq', 'S', 'Q', 100), ...twoWay('sr', 'S', 'R', 100),
+    ], ids.map((id, i) => ({ id, nodeId: ['P', 'Q', 'R'][i], category: i === 2 ? 'cafe' : 'seating' })));
+    longIds.datasetVersion = 'v'.repeat(120);
+    longIds.starts[0].id = 's'.repeat(120);
+    const { dataset } = loadDataset(longIds);
+    const request = { ...req, startId: dataset.starts[0].id, requiredPlaceIds: ids.slice(0, 2), requireCafe: true };
+    const [planned] = plan(dataset, request, now).plans;
+    expect(planned.id).toHaveLength(364);
+    const shared = { datasetVersion: dataset.datasetVersion, request, planId: planned.id };
+    const decoded = decodeShare(encodeShare(shared));
+    expect(decoded).toEqual({ ok: true, shared });
+    if (!decoded.ok) throw new Error('Maximum-length valid route failed to decode');
+    expect(rebuildPlan(dataset, decoded.shared.request, now, decoded.shared.planId).plans).toEqual([planned]);
+  });
+
+  it('round-trips a maximum-length curated identifier including dots', () => {
+    const shared = { datasetVersion: ds.datasetVersion, request: req, planId: `c:${'a.'.repeat(60)}` };
+    expect(decodeShare(encodeShare(shared))).toEqual({ ok: true, shared });
+  });
+
+  it.each([
+    ['id', `g:${'a'.repeat(121)}`], ['id', `c:${'a'.repeat(121)}`],
+    ['id', `g:${Array(4).fill('a'.repeat(120)).join('.')}`], ['id', 'g:a..b'],
+    ['id', 'g:a\n'], ['id', 'other:a'],
+    ['d', 'd'.repeat(121)], ['s', 's'.repeat(121)], ['s', 'start\n'],
+    ['r', 'a.b'], ['r', 'a'.repeat(121)], ['dw', 'a.b~5'],
+  ])('rejects malformed or oversized identifiers without loosening fragment limits: %s=%s', (key, value) => {
+    const params = new URLSearchParams(encodeShare({ datasetVersion: ds.datasetVersion, request: req, planId: p.id }).slice(1));
+    params.set(key, value);
+    expect(decodeShare(`#${params}`).ok).toBe(false);
+  });
+
   it.each([
     ['r', 'p_tower,p_bench,p_pond'],
     ['t', '29'], ['t', '91'], ['f', '31'], ['dw', 'p_tower~121'],

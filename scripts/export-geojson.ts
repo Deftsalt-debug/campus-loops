@@ -3,10 +3,14 @@
 // Writes out/<datasetVersion>.geojson. GeoJSON uses [lng, lat] order.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { validateDataset } from '../src/core/dataset/validate';
 import type { Dataset } from '../src/core/types';
 
-const file = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'src/data/fixtures/pilot-fixture.json';
+const file = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'src/data/manipal-demo.json';
 const data = JSON.parse(readFileSync(file, 'utf8')) as Dataset;
+const errors = validateDataset(data).filter((issue) => issue.level === 'error');
+if (errors.length) throw new Error(`Cannot export an invalid dataset: ${errors.map((issue) => issue.message).join('; ')}`);
+if (!/^[a-zA-Z0-9._-]+$/.test(data.datasetVersion)) throw new Error('datasetVersion must be safe to use as a filename');
 const nodes = new Map(data.nodes.map((n) => [n.id, n]));
 
 // geojson.io understands simplestyle properties, so colour edges by what matters most.

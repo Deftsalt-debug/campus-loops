@@ -32,7 +32,7 @@ export interface SearchResult {
  * - requirements: more required stops are missing than slots remain
  * With 12 candidates this explores at most 1,464 sequences, usually far fewer.
  */
-export function searchGenerated(ctx: RequestContext, candidates: Place[], limits: Limits): SearchResult {
+export function searchGenerated(ctx: RequestContext, candidates: Place[], limits: Limits, onlyPlanId?: string): SearchResult {
   const rejections: Record<RejectReason, number> = { time: 0, budget: 0, hours: 0, unreachable: 0, requirements: 0 };
   const itineraries: Itinerary[] = [];
   let evaluated = 0;
@@ -58,7 +58,7 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
       const home = ctx.leg(at, ctx.startNode);
       if (!home) {
         rejections.unreachable++;
-      } else if (missingRequired() === 0) {
+      } else if (missingRequired() === 0 && (!onlyPlanId || `g:${visits.map((v) => v.place.id).join('.')}` === onlyPlanId)) {
         evaluated++;
         // Check the same total the plan will report, so rounding can't disagree.
         const itinerary = buildItinerary([...legs, home], [...visits], spendLow, spendHigh, ctx);
@@ -77,6 +77,12 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
 
     for (const place of candidates) {
       if (visits.some((v) => v.place.id === place.id)) continue;
+      if (onlyPlanId) {
+        // Rebuilding a saved route must not search every permutation in the
+        // dataset, but its stops must survive the recommendation shortlist.
+        const prefix = `g:${[...visits.map((v) => v.place.id), place.id].join('.')}`;
+        if (prefix !== onlyPlanId && !onlyPlanId.startsWith(`${prefix}.`)) continue;
+      }
       const leg = ctx.leg(at, place.nodeId);
       if (!leg) {
         rejections.unreachable++;

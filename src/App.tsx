@@ -1,4 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import osmSnapshot from '../data/osm/snapshot.json'
 import { calibrationSummaryText } from './ui/calibration'
 import { DatasetError, loadDataset } from './core/dataset/load'
 import { plan, rebuildPlan } from './core/planner/plan'
@@ -41,8 +42,20 @@ function useMediaQuery(query: string): boolean {
 function useNow(intervalMs: number): Date {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), intervalMs)
-    return () => clearInterval(t)
+    const refresh = () => setNow(new Date())
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    const t = setInterval(refresh, intervalMs)
+    // Mobile browsers suspend timers in the background. Recheck deadlines as
+    // soon as someone returns to the app, rather than showing a stale walk.
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [intervalMs])
   return now
 }
@@ -242,6 +255,12 @@ export default function App() {
                 <b>Demo data.</b> Paths and places come from OpenStreetMap and haven't been walked or checked yet. Prices and some opening
                 hours are placeholders. Check before you go.
               </span>
+              {dataset.datasetVersion.startsWith('manipal-demo-') && <p>
+                Map snapshot: <time dateTime={osmSnapshot.retrievedAt.slice(0, 10)}>{osmSnapshot.retrievedAt.slice(0, 10)}</time>.
+                {' '}Checked against OpenStreetMap on <time dateTime={osmSnapshot.checkedLiveOn}>{osmSnapshot.checkedLiveOn}</time>.
+                {' '}Starts and stops use nearby mapped paths; entrances, gates, steps and shelter still need local checks.
+                {' '}<a href="https://www.openstreetmap.org/#map=16/13.3475/74.7925" target="_blank" rel="noopener noreferrer">View the source map</a>.
+              </p>}
             </details>
           )}
 

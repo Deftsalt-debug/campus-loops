@@ -1,0 +1,9 @@
+{
+  "sourceUrl": "https://api.openstreetmap.org/api/0.6/map.json?bbox=74.786,13.3395,74.7985,13.3555",
+  "retrievedAt": "2026-10-01",
+  "checkedLiveOn": "2026-10-01",
+  "sha256": "898391fa93533529b8123a0e796a7345a892d28c2a8e362ce17594c36d6ad6f9",
+  "latestElementEdit": "2026-09-02T06:44:30Z",
+  "fieldVerified": false,
+  "comparison": "All 7099 elements match a live response on checkedLiveOn; retained original raw snapshot bytes."
+}
