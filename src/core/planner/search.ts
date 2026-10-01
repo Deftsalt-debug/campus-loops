@@ -62,10 +62,12 @@ export function searchGenerated(ctx: RequestContext, candidates: Place[], limits
         evaluated++;
         // Check the same total the plan will report, so rounding can't disagree.
         const itinerary = buildItinerary([...legs, home], [...visits], spendLow, spendHigh, ctx);
-        if (itinerary.totalSec <= limits.availableSec) {
-          itineraries.push(itinerary);
-        } else {
+        if (itinerary.totalSec > limits.availableSec) {
           rejections.time++;
+        } else if (itinerary.edges.some((edge) => edge.meters > 0)) {
+          // A stop at the start can be part of a walk, but staying there is
+          // not an outing. Keep searching so later stops can add a real leg.
+          itineraries.push(itinerary);
         }
       }
     }

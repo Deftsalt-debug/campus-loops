@@ -64,6 +64,9 @@ describe('plan invariants across the request matrix', () => {
 
     const startNode = ds.starts.find((s) => s.id === req.startId)!.nodeId;
     for (const p of res.plans) {
+      expect(p.edgeIds.length).toBeGreaterThan(0);
+      expect(p.distanceM).toBeGreaterThan(0);
+      expect(p.walkingSec).toBeGreaterThan(0);
       // Continuous walk that starts and ends at the start.
       let at = startNode;
       for (const id of p.edgeIds) {

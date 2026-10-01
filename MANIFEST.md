@@ -147,7 +147,7 @@ src/storage/         calibrationLog.ts, savedPlans.ts (localStorage, fail safely
 src/data/            manipal-demo.json, fixtures/pilot-fixture.json
 scripts/             import-osm.ts, osm-rules.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
 data/osm/            raw OSM snapshot, provenance + elevation cache (ODbL)
-tests/               17 files, 1,524 tests at the current QA checkpoint
+tests/               17 files, 1,527 tests at the current QA checkpoint
 .github/workflows/   deploy.yml (verify → build → GitHub Pages)
 ROADMAP.md           product plan, decisions, weekly checklists
 ```

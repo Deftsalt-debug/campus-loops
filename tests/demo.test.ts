@@ -55,6 +55,9 @@ describe('Manipal demo dataset', () => {
     const res = plan(demo, { startId, occasion, ...d, requiredPlaceIds: [], avoidSteps: false, rain: false }, ist('2026-10-01', '10:30'));
     expect(res.plans.length + res.blockers.length).toBeGreaterThan(0);
     for (const p of res.plans) {
+      expect(p.edgeIds.length).toBeGreaterThan(0);
+      expect(p.distanceM).toBeGreaterThan(0);
+      expect(p.walkingSec).toBeGreaterThan(0);
       const route = planGeometry(demo, p);
       expect(route.path[0]).toEqual(route.path[route.path.length - 1]);
       expect(googleMapsDirectionsUrl(route).url.length).toBeLessThanOrEqual(2048);

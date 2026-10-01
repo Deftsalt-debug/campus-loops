@@ -122,7 +122,7 @@ No accounts, tracking or analytics. Planning runs entirely in your browser. Your
 
 This is a working demo, not a verified pilot. To make it trustworthy, follow Week 1 of [ROADMAP.md](ROADMAP.md): walk the routes, check access, prices and hours, and record cover and steps, until `npm run data:check -- --production` passes. [MANIFEST.md](MANIFEST.md) explains every part of the project in detail.
 
-The current QA checkpoint passes lint, typechecking, 1,524 tests across 17 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
+The current QA checkpoint passes lint, typechecking, 1,527 tests across 17 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
 
 Three useful MIT Manipal additions for a future verified pilot are:
 

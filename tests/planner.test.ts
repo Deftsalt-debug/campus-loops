@@ -33,6 +33,39 @@ const exactRequest = (overrides: Partial<PlanRequest> = {}) =>
   request({ startId: 'start', pace: 'relaxed', durationMin: 35, budgetInr: 0, ...overrides });
 
 describe('hard limits', () => {
+  it('does not offer a stationary stop at the starting point as a walk', () => {
+    const ds = tinyDataset(['S', 'P'], twoWay('sp', 'S', 'P', 100), [
+      { id: 'start_cafe', nodeId: 'S', category: 'cafe', dwellDefaultMin: 25 },
+    ]);
+    const req = exactRequest({ durationMin: 60, requireCafe: true });
+    const result = plan(ds, req, THU_10AM);
+    expect(result.plans).toEqual([]);
+    expect(result.blockers).not.toEqual([]);
+    expect(rebuildPlan(ds, req, THU_10AM, 'g:start_cafe').blockers[0].code).toBe('PLAN_OUTDATED');
+  });
+
+  it('keeps a stop at the start when a later stop adds genuine walking', () => {
+    const ds = tinyDataset(['S', 'P'], twoWay('sp', 'S', 'P', 100), [
+      { id: 'start_cafe', nodeId: 'S', category: 'cafe', dwellDefaultMin: 25 },
+      { id: 'bench', nodeId: 'P', dwellDefaultMin: 5 },
+    ]);
+    const req = exactRequest({ durationMin: 60, requireCafe: true, requiredPlaceIds: ['start_cafe', 'bench'] });
+    const result = rebuildPlan(ds, req, THU_10AM, 'g:start_cafe.bench');
+    expect(result.blockers).toEqual([]);
+    expect(result.plans).toHaveLength(1);
+    expect(result.plans[0].visits[0]).toMatchObject({ placeId: 'start_cafe', afterEdge: 0, arriveOffsetSec: 0 });
+    expect(result.plans[0].edgeIds).toEqual(['sp:f', 'sp:r']);
+    expect(result.plans[0].distanceM).toBe(200);
+    expect(result.plans[0].walkingSec).toBe(200);
+  });
+
+  it('does not treat waits on zero-distance connectors as walking', () => {
+    const ds = tinyDataset(['S', 'P'], twoWay('connector', 'S', 'P', 0, { delaySeconds: 30 }), [
+      { id: 'bench', nodeId: 'P' },
+    ]);
+    expect(plan(ds, exactRequest(), THU_10AM).plans).toEqual([]);
+  });
+
   it('accepts a plan exactly at the duration limit', () => {
     const res = plan(exactDataset(), exactRequest(), THU_10AM);
     expect(res.plans).toHaveLength(1);
