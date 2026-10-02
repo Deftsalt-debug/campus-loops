@@ -31,23 +31,62 @@ export function MapDock({ wide, pending, title, subtitle, ...map }: Props) {
   const full = expanded && !wide
   const touchPan = wide || full
 
-  // Expanded: lock page scroll, close with Escape, keep focus on the controls.
+  // Expanded: lock page scroll and make the map a keyboard-accessible modal.
   useEffect(() => {
     if (!full) return
     const root = document.documentElement
     const dock = ref.current
-    const previous = root.style.overflow
+    if (!dock) return
+    const previousOverflow = root.style.overflow
+    const previousFocus = document.activeElement
     root.style.overflow = 'hidden'
-    // Behave as a modal: everything the full-screen map covers leaves the tab order and accessibility tree.
-    const covered = [...(dock?.parentElement?.children ?? [])].filter((el): el is HTMLElement => el !== dock && el instanceof HTMLElement && !el.inert)
-    covered.forEach((el) => { el.inert = true })
-    dock?.querySelector<HTMLElement>('.map-expand')?.focus({ preventScroll: true })
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setExpanded(false); setRefitKey((k) => k + 1) } }
-    window.addEventListener('keydown', onKey)
+    // The skip link and other app siblings also sit outside <main>. Walk up
+    // the ancestor chain so none of the covered page remains focusable.
+    const covered: HTMLElement[] = []
+    let branch: HTMLElement = dock
+    while (branch.parentElement) {
+      const parent = branch.parentElement
+      for (const sibling of parent.children) {
+        if (sibling !== branch && sibling instanceof HTMLElement && !sibling.inert) {
+          covered.push(sibling)
+          sibling.inert = true
+        }
+      }
+      if (parent === document.body) break
+      branch = parent
+    }
+    const controls = () => [...dock.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]')]
+      .filter((element) => element.tabIndex >= 0 && !element.matches(':disabled') && !element.closest('[inert]') && element.getClientRects().length > 0)
+    dock.querySelector<HTMLElement>('.map-expand')?.focus({ preventScroll: true })
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        setExpanded(false)
+        setRefitKey((key) => key + 1)
+      } else if (event.key === 'Tab') {
+        const items = controls()
+        const first = items[0]
+        const last = items.at(-1)
+        if (!first) { event.preventDefault(); dock.focus(); return }
+        if (!items.includes(document.activeElement as HTMLElement) || (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+          event.preventDefault()
+          ;(event.shiftKey ? last : first)?.focus()
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
     return () => {
-      root.style.overflow = previous
-      covered.forEach((el) => { el.inert = false })
-      window.removeEventListener('keydown', onKey)
+      root.style.overflow = previousOverflow
+      covered.forEach((element) => { element.inert = false })
+      window.removeEventListener('keydown', onKey, true)
+      // The expand button disappears if resizing closes the modal; in that
+      // case keep the keyboard at the map instead of losing focus to <body>.
+      if (previousFocus instanceof HTMLElement && previousFocus !== document.body && previousFocus.isConnected && !previousFocus.closest('[inert]')) {
+        previousFocus.focus({ preventScroll: true })
+      } else {
+        dock.querySelector<HTMLElement>('.map-expand, .map')?.focus({ preventScroll: true })
+      }
     }
   }, [full])
 
@@ -75,7 +114,7 @@ export function MapDock({ wide, pending, title, subtitle, ...map }: Props) {
   }, [touchPan])
 
   return (
-    <section ref={ref} className={`map-dock${full ? ' is-expanded' : ''}${busy ? ' is-busy' : ''}`} aria-label={full ? 'Map, full screen' : 'Map'} aria-busy={pending}>
+    <section ref={ref} className={`map-dock${full ? ' is-expanded' : ''}${busy ? ' is-busy' : ''}`} aria-label={full ? 'Map, full screen' : 'Map'} role={full ? 'dialog' : undefined} aria-modal={full || undefined} tabIndex={full ? -1 : undefined} aria-busy={pending}>
       <div className="map-progress" aria-hidden="true" />
       <div className="map-label">
         <span className="eyebrow">{subtitle}</span>

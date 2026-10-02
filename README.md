@@ -54,16 +54,16 @@ npm ci
 npm run dev          # http://localhost:5173
 ```
 
-At night, sunset blocks new plans. Use **Preview tomorrow 10:00** in the notice, or *More options → Plan as if it's…*.
+At night, sunset blocks new plans. Use **Preview tomorrow 10:00** in the notice, or *Options → Plan as if it's…*.
 
-For a class break, choose your campus start, use **Find a campus stop** to add a must-visit, and set *More options → Back by* and *Return buffer*. A buffer is part of the time you have: a 30-minute gap with a 10-minute buffer leaves at most 20 minutes for walking and stops. If the route cannot fit, change the choices rather than assuming the return deadline has been relaxed.
+For a class break, choose your campus start, open **Must-visit** and search campus places to add a required stop, and set *Options → Back by* and *Return buffer*. A buffer is part of the time you have: a 30-minute gap with a 10-minute buffer leaves at most 20 minutes for walking and stops. If the route cannot fit, change the choices rather than assuming the return deadline has been relaxed.
 
 | Command | What it does |
 |---|---|
 | `npm run verify` | Lint, typecheck, all unit and invariant tests, production build |
 | `npm test` | Vitest only |
 | `npm run benchmark` | Repeatable 96-request campus workload, timings and a result digest; compare on the same machine |
-| `npm audit --audit-level=high` | Check dependencies for known advisories; also runs in release CI |
+| `npm audit --audit-level=moderate` | Check dependencies for known advisories; also runs in release CI |
 | `npm run data:check -- <file>` | Validate a dataset; defaults to the Manipal dataset used by the app. Add `--production` to also refuse demo and placeholder data |
 | `npm run data:osm` | Rebuild `src/data/manipal-demo.json` from the saved OSM snapshot (`-- --fetch` to re-download, `-- --elevation` to fill missing heights) |
 | `npm run data:geojson -- <file>` | Validate and export a dataset to `out/*.geojson` for a visual check on geojson.io; defaults to the app's Manipal dataset |
@@ -76,7 +76,7 @@ For a class break, choose your campus start, use **Find a campus stop** to add a
 
 GitHub Actions verifies pull requests and deploys successful builds from `main` to Pages. Choose **GitHub Actions** as the Pages source in repository settings. PR checks use a read-only token and cannot cancel a `main` release. Only the deploy job receives Pages write permissions. Dependabot proposes npm and Actions updates; review them before merging.
 
-The repository review on 1 October 2026 found five open Dependabot PRs proposing major updates with their existing checks passing; they were not merged as part of this polish. `main` was unprotected at that checkpoint. Requiring the **verify** job before merges is recommended; repository permissions and protection settings were not changed.
+The 2 October 2026 audit upgrades TypeScript to 7.0.2 and Node typings to 24.19.1, matching the recommended Node 24 runtime. GitHub Actions use verified immutable commit pins; Dependabot can propose pin updates. The dependency advisory gate rejects moderate or higher findings. `main` was unprotected at the audit checkpoint; requiring the **verify** job before merges is recommended. Repository permissions and protection settings were not changed.
 
 The default map uses OpenStreetMap's public tile server for a small demo. For a broader audience, choose a provider whose terms and capacity fit your traffic. Copy `.env.example` to `.env.local`, then set these values before building:
 
@@ -142,7 +142,7 @@ No accounts, tracking or analytics. Planning runs entirely in your browser. Your
 
 This is a working demo, not a verified pilot. To make it trustworthy, follow Week 1 of [ROADMAP.md](ROADMAP.md): walk the routes, check access, prices and hours, and record cover and steps, until `npm run data:check -- --production` passes. [MANIFEST.md](MANIFEST.md) explains every part of the project in detail.
 
-The final QA checkpoint passes lint, typechecking, 1,759 tests across 21 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. An additional 768-scenario campus matrix independently replays route timing, budgets and exact shared-plan rebuilding. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
+The 2 October 2026 repository audit passes lint, typechecking, 1,824 tests across 24 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. An additional 768-scenario campus matrix independently replays route timing, budgets and exact shared-plan rebuilding. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
 
 Three useful MIT Manipal additions for a future verified pilot are:
 

@@ -39,6 +39,20 @@ export const WalkDetail = memo(function WalkDetail({ plan, index, count, dataset
   const [actualMin, setActualMin] = useState('')
   const [copyFallback, setCopyFallback] = useState<'link' | 'text' | null>(null)
   const list = useRef<HTMLOListElement>(null)
+  const copyField = useRef<HTMLTextAreaElement>(null)
+  const shareButton = useRef<HTMLButtonElement>(null)
+  const copyButton = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!copyFallback) return
+    copyField.current?.focus({ preventScroll: true })
+    copyField.current?.select()
+  }, [copyFallback])
+  const closeCopyField = () => {
+    const trigger = copyFallback === 'link' ? shareButton.current : copyButton.current
+    setCopyFallback(null)
+    trigger?.focus({ preventScroll: true })
+  }
   let stopNumber = 0
 
   // A pin tapped on the map brings its row into view beside it.
@@ -154,18 +168,18 @@ export const WalkDetail = memo(function WalkDetail({ plan, index, count, dataset
           Start in Google Maps <Icon name="arrow" size={18} className="go-arrow" />
         </a>
         <div className="go-row">
-          <button type="button" className="btn" onPointerDown={ripple} onClick={share}><Icon name="share" size={17} />Share</button>
+          <button ref={shareButton} type="button" className="btn" onPointerDown={ripple} onClick={share}><Icon name="share" size={17} />Share</button>
           <button type="button" className={`btn${saved ? ' is-saved' : ''}`} onPointerDown={ripple} onClick={onSave} disabled={saved}>
             <Icon name={saved ? 'check' : 'bookmark'} size={17} />{saved ? 'Saved' : 'Save'}
           </button>
-          <button type="button" className="btn" onPointerDown={ripple} onClick={copyText}><Icon name="copy" size={17} />Copy</button>
+          <button ref={copyButton} type="button" className="btn" onPointerDown={ripple} onClick={copyText}><Icon name="copy" size={17} />Copy</button>
         </div>
       </div>
       {copyFallback && <div className="copy-fallback">
         <label htmlFor={`copy-${plan.id}`}>{copyFallback === 'link' ? 'Link to this walk' : 'Itinerary to copy'}</label>
-        <textarea id={`copy-${plan.id}`} className="input" readOnly rows={copyFallback === 'link' ? 3 : 8} value={copyFallback === 'link' ? shareUrl : planToText(plan, startName, startSec)} onFocus={(e) => e.currentTarget.select()} />
+        <textarea ref={copyField} id={`copy-${plan.id}`} className="input" readOnly rows={copyFallback === 'link' ? 3 : 8} value={copyFallback === 'link' ? shareUrl : planToText(plan, startName, startSec)} onFocus={(e) => e.currentTarget.select()} />
         <p className="hint">Select the text and use your device’s Copy command.</p>
-        <button type="button" className="btn ghost" onClick={() => setCopyFallback(null)}>Close copy field</button>
+        <button type="button" className="btn ghost" onClick={closeCopyField}>Close copy field</button>
       </div>}
 
       <details className="more">

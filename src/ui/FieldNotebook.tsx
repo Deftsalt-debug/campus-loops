@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Dataset } from '../core/types'
 import {
-  exportFieldNotesJson, FIELD_NOTES_KEY, fieldNotesForDataset, MAX_FIELD_NOTE_LENGTH, MAX_FIELD_NOTES,
+  fieldNotesToJson, FIELD_NOTES_KEY, fieldNotesForDataset, MAX_FIELD_NOTE_LENGTH, MAX_FIELD_NOTES,
   readFieldNotes, removeFieldNote, repairFieldNotes, saveFieldNote,
 } from '../storage/fieldNotes'
 import type { FieldNoteCategory, FieldNoteResult } from '../storage/fieldNotes'
@@ -75,7 +75,7 @@ export function FieldNotebook({ dataset, notify }: Props) {
       setError('No readable observations are available to export.'); return
     }
     try {
-      download('campus-loops-field-notes.json', 'application/json', exportFieldNotesJson())
+      download('campus-loops-field-notes.json', 'application/json', fieldNotesToJson(current.notes))
       setError('')
       notify('Field notes exported for your review')
     } catch { setError('The download could not start. Your saved notes are still on this device.') }

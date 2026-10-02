@@ -5,7 +5,7 @@ const PUBLIC_ACCESS = new Set(['yes', 'designated', 'permissive', 'official']);
 const PEDESTRIAN_WAYS = new Set(['footway', 'path', 'steps']);
 
 function unsupportedCondition(tags: Record<string, string>): boolean {
-  return Object.keys(tags).some((key) => /^(?:foot|access|oneway:foot)(?::[^:]+)*:conditional$/.test(key)) ||
+  return Object.keys(tags).some((key) => /^(?:foot|access|oneway:foot|locked)(?::[^:]+)*:conditional$/.test(key)) ||
     (PEDESTRIAN_WAYS.has(tags.highway) && tags['oneway:conditional'] !== undefined);
 }
 
@@ -15,7 +15,7 @@ function publicAccess(value: string | undefined): boolean {
 
 /** The demo cannot evaluate permits, destination-only access, or conditional restrictions. */
 export function isPedestrianAllowed(tags: Record<string, string>): boolean {
-  if (unsupportedCondition(tags)) return false;
+  if (unsupportedCondition(tags) || tags.locked === 'yes') return false;
   const access = tags.foot ?? tags.access;
   if (!publicAccess(access)) return false;
   if (['wall', 'fence', 'retaining_wall', 'hedge'].includes(tags.barrier) && !tags.foot) return false;
@@ -24,8 +24,12 @@ export function isPedestrianAllowed(tags: Record<string, string>): boolean {
 
 /** Explicit pedestrian rules override generic one-way tags; road one-ways govern vehicles. */
 export function pedestrianDirections(tags: Record<string, string>): { forward: boolean; reverse: boolean } {
-  if (unsupportedCondition(tags)) return { forward: false, reverse: false };
+  if (unsupportedCondition(tags) || tags.locked === 'yes') return { forward: false, reverse: false };
   const oneWay = tags['oneway:foot'] ?? (PEDESTRIAN_WAYS.has(tags.highway) ? tags.oneway : undefined);
+  // Alternating/reversible directions need live timing; unknown values are not permission.
+  if (oneWay !== undefined && !['yes', '1', 'true', '-1', 'reverse', 'no', '0', 'false'].includes(oneWay)) {
+    return { forward: false, reverse: false };
+  }
   const forward = !['-1', 'reverse'].includes(oneWay ?? '') &&
     publicAccess(tags['foot:forward'] ?? tags.foot ?? tags['access:forward'] ?? tags.access);
   const reverse = !['yes', '1', 'true'].includes(oneWay ?? '') &&

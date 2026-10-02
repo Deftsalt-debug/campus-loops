@@ -12,7 +12,7 @@ Run with Node.js 24 and the committed lockfile:
 npm ci
 npm run verify
 npm run data:check -- src/data/manipal-demo.json
-npm audit --audit-level=high
+npm audit --audit-level=moderate
 ```
 
 Use `npm run preview` to check the build, including loading it under the `/campus-loops/` sub-path. Verify phone and desktop layouts, keyboard navigation, light/dark themes, each sentence editor (occasion, start, time, budget), Must-visit and Options, route selection from cards and from the map, timeline ↔ pin linking, the phone map's expand and two-finger hint, the drawer, **Show entire route**, the after-sunset preview, a valid shared plan, an invalid shared plan, saving/reopening/removing plans, **Start in Google Maps**, KML/GPX exports, and logging/exporting/clearing a real walking time. Search the campus catalogue, add two must-visits, remove one and check unavailable places; try a short class gap with different return buffers. Check that returning to a backgrounded tab refreshes the departure/deadline. Block the tile host once to check the map's failure message and usable itinerary. Test with storage blocked to check that Save/logging reports failure.
@@ -41,6 +41,22 @@ The current demo is expected to fail this last check. Passing structural validat
 ## Rolling back
 
 Revert the faulty change through a pull request or restore the last known good commit on `main` using the team's normal Git process. The workflow rebuilds and publishes that version after verification. Saved plans reopen against the deployed dataset and current time; a route that no longer fits shows a failure instead of silently substituting another walk. Local data is not a backup and is not migrated between devices or domains.
+
+## GitHub-source repository audit — 2 October 2026
+
+The audit starts from GitHub `main` at `b29f90c` (the merged outing/chooser/head-out redesign), in an isolated worktree. The original checkout's unfinished local edits were preserved. Previous dated checkpoints below describe their respective builds.
+
+- **Automated release checks:** clean lint, TypeScript, **1,824 tests across 24 files**, production build and structural dataset validation. npm reports **zero vulnerabilities**. The audit adds 54 regressions beyond the 1,770-test GitHub baseline, including a rendered accessibility regression.
+- **Core correctness:** collision-free route cache keys, finite walking/rain weights and overflow checks, malformed direct request blockers, continuous return-to-start export geometry, and honest café pass-by descriptions. Invalid waypoint limits are rejected before sampling, and Google Maps exports cannot silently drop a required visit.
+- **Exports:** calendar newline/control sanitization and web-URL validation prevent injected properties; XML exports replace characters forbidden by XML 1.0. Independently generated exports from 128 campus recommendations passed Python XML parsing (**256 GPX/KML documents**) and calendar CRLF, folding, event-boundary and UTC checks (**128 calendars**).
+- **OSM access:** future imports exclude locked gates, conditional locks and unsupported pedestrian one-way values. These tags are absent from the committed snapshot. The offline rebuild is byte-identical (SHA-256 `9be8172551c10a32e90d963b22798ebfbf5846a68db8eced2512d08ee22802cd`), so the dataset version and existing saved/share compatibility are retained.
+- **Persistence:** calibration and notebook writes cannot exceed their own readable size limits. Empty/duplicate-only restores work against readable legacy overflow without rewriting records. Calibration and notebook exports serialize the exact checked snapshot and report unavailable/unreadable data.
+- **Accessibility:** full-screen map has modal semantics, makes the covered page inert, wraps Tab/Shift+Tab and restores focus on Escape or layout changes. Drawer reopening clears stale exit state. Clipboard fallback focuses/selects its text and restores the originating button. Invalid outing choices link to their own visible error descriptions.
+- **Production-browser checks at `/campus-loops/`:** shared preview and save/reopen/reload preserve the exact route; notebook save/removal, itinerary clipboard contents and calibration logging/clearing work. Full-screen map wraps focus in both directions, restores focus on Escape, and closes cleanly when resizing to desktop after zooming. At 320×740, 844×390 and 1280×900 there is no page overflow and exactly one map. Disposable local fixtures confirm blocked storage reports failure without losing the itinerary, unavailable tiles retain the route line/pins with Retry, and denied clipboard selects the fallback text and returns focus to Share. The night blocker recovers via tomorrow preview; an inherited-property occasion in a hostile share link displays a usable invalid-link notice. Healthy desktop/phone runs produced no warning/error logs. This fresh pass uses the dark appearance; earlier light/reduced-motion audits below remain historical evidence.
+- **Toolchain and CI:** TypeScript **7.0.2**, Node 24 typings **24.19.1**, immutable official Action commit pins, and a moderate-or-higher advisory gate. CI retains a read-only PR token and deployment only from verified `main` builds.
+- **Performance:** the same 96-request workload (288 timed samples) measured median **1.15 ms**, p95 **7.35 ms**, max **13.27 ms** on this machine; result digest is unchanged. Production main JavaScript is **114.28 KB gzip**, app CSS **9.48 KB**, map JavaScript **43.37 KB** and demo data **41.87 KB**.
+
+Structural validation reports zero errors. Strict production validation still rejects the demo marker and 33 placeholder values. Field checks, external calendar/My Maps imports and physical-device testing remain prerequisites for stronger route claims. No code licence or repository access/protection policy was selected or changed during this audit.
 
 ## Fifth review — interface flow and map responsiveness (2 October 2026)
 

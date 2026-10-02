@@ -62,6 +62,9 @@ export function dijkstra(
       const v = reverse ? edge.from : edge.to;
       if (settled.has(v)) continue;
       const candidate = d + w;
+      if (!Number.isFinite(candidate)) {
+        throw new RangeError(`Path to ${v} overflowed while adding edge ${edge.id}`);
+      }
       const known = dist.get(v);
       // Strict < keeps the first path found on ties, which is deterministic
       // because adjacency lists are sorted and the heap is FIFO on ties.

@@ -184,6 +184,21 @@ describe('saved-walk backups', () => {
     expect(store.setItem).not.toHaveBeenCalled()
   })
 
+  it('accepts no-op restores without rewriting or discarding readable legacy overflow', () => {
+    const plans = Array.from({ length: MAX_SAVED_PLANS + 2 }, (_, i) => saved(i))
+    const store = memoryStore(JSON.stringify(plans))
+    const original = store.value
+    const write = vi.spyOn(store, 'setItem')
+    expect(importSavedPlans(backup([]), store)).toEqual({ ok: true, imported: 0, skipped: 0, total: plans.length })
+    expect(importSavedPlans(backup(plans.slice(0, MAX_SAVED_PLANS)), store)).toEqual({
+      ok: true, imported: 0, skipped: MAX_SAVED_PLANS, total: plans.length,
+    })
+    expect(importSavedPlans(backup([saved(500)]), store)).toMatchObject({ ok: false, reason: 'full' })
+    expect(store.value).toBe(original)
+    expect(write).not.toHaveBeenCalled()
+    expect(listSavedPlans(store)).toEqual(plans)
+  })
+
   it('rejects insufficient capacity without importing the subset that would fit', () => {
     const store = memoryStore(JSON.stringify(Array.from({ length: MAX_SAVED_PLANS - 1 }, (_, i) => saved(i))))
     const original = store.value

@@ -3,6 +3,7 @@ import { isIsoInstant } from '../core/time/clock'
 import type { KeyValueStore } from './calibrationLog'
 
 export const FIELD_NOTES_KEY = 'campusloops.field-notes.v1'
+const MAX_FIELD_NOTES_STORAGE_LENGTH = 1_000_000
 export const MAX_FIELD_NOTES = 100
 export const MAX_FIELD_NOTE_LENGTH = 1500
 export const FIELD_NOTE_CATEGORIES = ['prices', 'hours', 'access'] as const
@@ -63,7 +64,7 @@ export function readFieldNotes(store: KeyValueStore | null = defaultStore()): Fi
   try { raw = store.getItem(FIELD_NOTES_KEY) } catch { return { notes: [], status: 'unavailable' } }
   if (raw === null) return { notes: [], status: 'ready' }
   // Normal maximum is well below this. Bound work on arbitrary browser-storage contents.
-  if (raw.length > 1_000_000) return { notes: [], status: 'corrupt' }
+  if (raw.length > MAX_FIELD_NOTES_STORAGE_LENGTH) return { notes: [], status: 'corrupt' }
   let parsed: unknown
   try { parsed = JSON.parse(raw) } catch { return { notes: [], status: 'corrupt' } }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { notes: [], status: 'corrupt' }
@@ -86,7 +87,11 @@ export function readFieldNotes(store: KeyValueStore | null = defaultStore()): Fi
 
 function writeNotes(notes: FieldNote[], store: KeyValueStore): boolean {
   try {
-    store.setItem(FIELD_NOTES_KEY, JSON.stringify({ schemaVersion: 1, notes: notes.map(cleanNote) }))
+    const raw = JSON.stringify({ schemaVersion: 1, notes: notes.map(cleanNote) })
+    // Escaped text can be larger than its character count. Never write a
+    // notebook that the defensive reader would immediately reject as corrupt.
+    if (raw.length > MAX_FIELD_NOTES_STORAGE_LENGTH) return false
+    store.setItem(FIELD_NOTES_KEY, raw)
     return true
   } catch { return false }
 }
@@ -118,12 +123,17 @@ export function fieldNotesForDataset(notes: FieldNote[], dataset: Pick<Dataset, 
   return notes.filter((note) => note.datasetVersion === dataset.datasetVersion || placeIds.has(note.placeId))
 }
 
-/** Export all readable observations, including other map versions, for manual review. */
-export function exportFieldNotesJson(store: KeyValueStore | null = defaultStore()): string {
+/** Serialize a checked snapshot without reading a different notebook during export. */
+export function fieldNotesToJson(notes: FieldNote[]): string {
   return JSON.stringify({
     schemaVersion: 1,
     kind: 'campus-loops-field-observations',
     verified: false,
-    notes: readFieldNotes(store).notes.map(cleanNote),
+    notes: notes.map(cleanNote),
   }, null, 2)
+}
+
+/** Export all readable observations, including other map versions, for manual review. */
+export function exportFieldNotesJson(store: KeyValueStore | null = defaultStore()): string {
+  return fieldNotesToJson(readFieldNotes(store).notes)
 }

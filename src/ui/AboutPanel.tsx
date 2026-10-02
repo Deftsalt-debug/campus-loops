@@ -1,6 +1,6 @@
 import osmSnapshot from '../../data/osm/snapshot.json'
 import type { Dataset } from '../core/types'
-import { clearLogs, exportLogsJson, getLogStorageStatus, listLogs } from '../storage/calibrationLog'
+import { clearLogs, readLogs } from '../storage/calibrationLog'
 import { calibrationSummaryText } from './calibration'
 import { ripple } from './effects'
 import { download } from './format'
@@ -14,6 +14,16 @@ interface Props {
 
 /** Data provenance, privacy, and the calibration log: everything the walk itself does not need. */
 export function AboutPanel({ dataset, logCount, onLogsChanged, notify }: Props) {
+  const { status, logs } = readLogs()
+  const exportLogs = () => {
+    const { status: currentStatus, logs: readable } = readLogs()
+    if (currentStatus === 'unavailable') { notify('Browser storage is unavailable. No calibration backup was created.'); return }
+    if (!readable.length) { notify('No readable calibration logs are available to export.'); return }
+    try {
+      download('campus-loops-walks.json', 'application/json', JSON.stringify(readable, null, 2))
+      notify(currentStatus === 'corrupt' ? 'Readable calibration logs exported. Unreadable entries were excluded.' : 'Calibration logs exported')
+    } catch { notify('The calibration backup could not be downloaded. Your logs are still on this device.') }
+  }
   return (
     <div className="about">
       {dataset.isFixture && (
@@ -39,10 +49,11 @@ export function AboutPanel({ dataset, logCount, onLogsChanged, notify }: Props) 
 
       <section className="calib">
         <h3>Calibration log <span className="count">{logCount}</span></h3>
-        {getLogStorageStatus() === 'corrupt' && <p className="notice" role="status">Some calibration data is unreadable. New logs are paused to preserve it. Export readable logs first; Clear then removes all stored calibration data so you can start again.</p>}
-        <p className="hint">{calibrationSummaryText(listLogs())}</p>
+        {status === 'corrupt' && <p className="notice" role="status">Some calibration data is unreadable. New logs are paused to preserve it. Export readable logs first; Clear then removes all stored calibration data so you can start again.</p>}
+        <p className="hint">{calibrationSummaryText(logs)}</p>
+        {status === 'unavailable' && <p className="notice" role="status">Browser storage is unavailable. Calibration logs cannot be saved, exported or cleared.</p>}
         <div className="row">
-          <button type="button" className="btn" onPointerDown={ripple} onClick={() => download('campus-loops-walks.json', 'application/json', exportLogsJson())}>Export JSON</button>
+          <button type="button" className="btn" onPointerDown={ripple} onClick={exportLogs} disabled={status === 'unavailable' || logs.length === 0}>Export JSON</button>
           <button type="button" className="btn ghost" onPointerDown={ripple} onClick={() => { const ok = clearLogs(); onLogsChanged(); notify(ok ? 'Calibration log cleared' : 'Storage is unavailable in this browser') }}>Clear</button>
           <button type="button" className="btn ghost" onPointerDown={ripple} onClick={onLogsChanged}>Refresh</button>
         </div>

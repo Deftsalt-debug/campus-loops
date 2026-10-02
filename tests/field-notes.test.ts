@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { KeyValueStore } from '../src/storage/calibrationLog'
 import {
-  exportFieldNotesJson, FIELD_NOTES_KEY, fieldNotesForDataset, MAX_FIELD_NOTES,
+  exportFieldNotesJson, FIELD_NOTES_KEY, fieldNotesForDataset, fieldNotesToJson, MAX_FIELD_NOTES,
   readFieldNotes, removeFieldNote, repairFieldNotes, saveFieldNote,
 } from '../src/storage/fieldNotes'
 import type { FieldNote } from '../src/storage/fieldNotes'
@@ -63,6 +63,15 @@ describe('field notebook persistence', () => {
     expect(exported.notes).toHaveLength(2)
     expect(exported.notes[0]).toEqual(note)
     expect(exportFieldNotesJson(store)).not.toContain('preciseLocation')
+  })
+
+  it('exports the checked notebook snapshot even if browser storage changes afterwards', () => {
+    const store = memoryStore([{ ...note, preciseLocation: [13.3, 74.7] }])
+    const snapshot = readFieldNotes(store)
+    store.getItem = () => { throw new Error('Storage became unavailable') }
+    expect(JSON.parse(fieldNotesToJson(snapshot.notes))).toEqual({
+      schemaVersion: 1, kind: 'campus-loops-field-observations', verified: false, notes: [note],
+    })
   })
 
   it('bounds the notebook without silently evicting old observations', () => {
@@ -167,6 +176,33 @@ describe('field notebook persistence', () => {
     expect(readFieldNotes(store).status).toBe('ready')
     expect(readFieldNotes(store).notes).toHaveLength(101)
     expect(JSON.parse(store.value).notes).toHaveLength(101)
+  })
+
+  it('rejects a save before JSON escaping can make the notebook exceed its readable size', () => {
+    // All fields are within their character limits. Escaped control characters
+    // can nevertheless make JSON much larger than those limits suggest.
+    const entry = {
+      ...note, datasetVersion: `v${'\u0000'.repeat(511)}`, placeName: `n${'\u0000'.repeat(239)}`,
+      text: `t${'\u0000'.repeat(1499)}`,
+    };
+    const notes: FieldNote[] = [];
+    let candidate = { ...entry, id: 'note-0' };
+    while (JSON.stringify({ schemaVersion: 1, notes: [...notes, candidate] }).length <= 1_000_000) {
+      notes.push(candidate);
+      candidate = { ...entry, id: `note-${notes.length}` };
+    }
+    expect(notes.length).toBeLessThan(MAX_FIELD_NOTES);
+    const store = memoryStore(notes);
+    const before = store.value;
+    expect(readFieldNotes(store).status).toBe('ready');
+    expect(saveFieldNote(candidate, store)).toBe('unavailable');
+    expect(store.value).toBe(before);
+    expect(store.writes).toBe(0);
+    expect(readFieldNotes(store).status).toBe('ready');
+    expect(JSON.parse(exportFieldNotesJson(store)).notes).toHaveLength(notes.length);
+    expect(removeFieldNote(notes[0].id, store)).toBe(true);
+    expect(saveFieldNote(candidate, store)).toBe('saved');
+    expect(readFieldNotes(store).status).toBe('ready');
   })
 
   it('bounds oversized persisted payloads without overwriting their contents', () => {
