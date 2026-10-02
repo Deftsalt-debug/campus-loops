@@ -44,7 +44,8 @@ export function Backdrop() {
       else last = 0
     }
     const onMove = (e: PointerEvent) => {
-      if (e.pointerType === 'touch' || reduced.matches) return
+      if (e.target instanceof Element && e.target.closest('.map-dock, .map-shell')) { onLeave(); return }
+      if (e.pointerType === 'touch' || reduced.matches || document.hidden) return
       target.x = e.clientX
       target.y = e.clientY
       if (!inside) {
@@ -57,10 +58,14 @@ export function Backdrop() {
       if (!frame) frame = requestAnimationFrame(step)
     }
     const onLeave = () => {
+      cancelAnimationFrame(frame)
+      frame = 0
+      last = 0
       inside = false
       spot.classList.remove('is-on')
     }
     const onDown = (e: PointerEvent) => {
+      if (e.target instanceof Element && e.target.closest('.map-dock, .map-shell')) return
       if (reduced.matches || e.button !== 0 || !e.isPrimary || document.hidden) return
       const ring = document.createElement('span')
       ring.className = 'backdrop-ripple'
@@ -80,6 +85,7 @@ export function Backdrop() {
     document.documentElement.addEventListener('pointerleave', onLeave)
     window.addEventListener('blur', onLeave)
     reduced.addEventListener('change', onLeave)
+    document.addEventListener('visibilitychange', onLeave)
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('pointermove', onMove)
@@ -87,6 +93,7 @@ export function Backdrop() {
       document.documentElement.removeEventListener('pointerleave', onLeave)
       window.removeEventListener('blur', onLeave)
       reduced.removeEventListener('change', onLeave)
+      document.removeEventListener('visibilitychange', onLeave)
     }
   }, [])
 

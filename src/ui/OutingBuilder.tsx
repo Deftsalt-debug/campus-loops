@@ -65,8 +65,10 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
   useEffect(() => {
     if (!open || !tray.current) return
     const el = tray.current
-    // Prefer the current choice, then the first control. (A selector list would match in document order.)
-    const target = el.querySelector<HTMLElement>('.tray-card [aria-checked="true"], .tray-card [aria-pressed="true"]')
+    // An invalid field takes priority when reopening an editor to fix it.
+    // Otherwise prefer the current choice, then the first control.
+    const target = el.querySelector<HTMLElement>('.tray-card [aria-invalid="true"]')
+      ?? el.querySelector<HTMLElement>('.tray-card [aria-checked="true"], .tray-card [aria-pressed="true"]')
       ?? el.querySelector<HTMLElement>('.tray-card input, .tray-card select, .tray-card button:not(.tray-done)')
     target?.focus({ preventScroll: true })
     const t = window.setTimeout(() => el.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }), 260)
@@ -79,6 +81,15 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
 
   const start = dataset.starts.find((s) => s.id === state.startId)
   const mustCount = state.required.filter(Boolean).length
+  const customStops = Object.entries(state.dwellOverridesMin ?? {}).flatMap(([id, minutes]) => {
+    const place = dataset.places.find((p) => p.id === id)
+    return place ? [{ id, name: place.name, minutes, error: stopTimeError(minutes) }] : []
+  })
+  const invalidStops = customStops.filter((stop) => stop.error)
+  const timedStopIds = [...new Set([...state.required.filter(Boolean), ...customStops.map((stop) => stop.id)])]
+    .filter((id) => dataset.places.some((place) => place.id === id))
+  const firstStopErrorId = invalidStops.length ? `stop-time-${timedStopIds.findIndex((id) => invalidStops.some((stop) => stop.id === id))}-error` : undefined
+  const stopsError = invalidStops.length ? `Check the stop time for ${invalidStops.map((stop) => stop.name).join(', ')}. Choose 0–${DEFAULT_CONFIG.maxDwellMin} minutes.` : null
   const adjusted = adjustedOptions(state)
   const sentenceErrors: Partial<Record<Editor, string | null>> = {
     duration: durationError,
@@ -114,12 +125,16 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
         ? <p key={editor} className="error" id={`${trayId}-${editor}-error`} role="alert">{error}</p>
         : null)}
 
+      {stopsError && open !== 'stops' && <p className="error" id={`${trayId}-stops-error`} role="alert">{stopsError}</p>}
+
       <div className="tune-row" role="group" aria-label="Fine-tune">
         <button type="button" className="chip tune" aria-pressed={state.requireCafe} onPointerDown={ripple} onClick={() => onChange({ requireCafe: !state.requireCafe })}>
           <Icon name={state.requireCafe ? 'check' : 'coffee'} size={16} />Café stop
         </button>
-        <button ref={(el) => { tokens.current.stops = el }} type="button" className="chip tune" aria-expanded={open === 'stops'} aria-controls={trayId} onPointerDown={ripple} onClick={() => toggle('stops')}>
-          <Icon name="pin" size={16} />{mustCount ? `${mustCount} must-visit${mustCount > 1 ? 's' : ''}` : 'Must-visit'}
+        <button ref={(el) => { tokens.current.stops = el }} type="button" className="chip tune" aria-expanded={open === 'stops'} aria-controls={trayId}
+          aria-describedby={stopsError ? (open === 'stops' ? firstStopErrorId : `${trayId}-stops-error`) : customStops.length > 0 && open !== 'stops' ? `${trayId}-stops-summary` : undefined}
+          onPointerDown={ripple} onClick={() => toggle('stops')}>
+          <Icon name="pin" size={16} />{mustCount ? `${mustCount} must-visit${mustCount > 1 ? 's' : ''}` : customStops.length ? 'Stop times' : 'Must-visit'}
         </button>
         <button ref={(el) => { tokens.current.options = el }} type="button" className="chip tune" aria-expanded={open === 'options'} aria-controls={trayId}
           aria-describedby={previewError ? (open === 'options' ? 'preview-error' : `${trayId}-options-error`) : undefined} onPointerDown={ripple} onClick={() => toggle('options')}>
@@ -127,6 +142,9 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
           {adjusted.length > 0 && <span className="tune-badge" aria-label={`${adjusted.length} changed`}>{adjusted.length}</span>}
         </button>
       </div>
+      {customStops.length > 0 && open !== 'stops' && <p className="tune-summary stops-summary" id={`${trayId}-stops-summary`}>
+        Custom stop times: {customStops.map((stop) => `${stop.name} · ${stop.error ? 'check time' : `${stop.minutes} min`}`).join('; ')}
+      </p>}
       {adjusted.length > 0 && open !== 'options' && <p className="tune-summary">{adjusted.join(' · ')}</p>}
 
       {state.previewAt && !previewError && (

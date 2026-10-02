@@ -42,6 +42,15 @@ The current demo is expected to fail this last check. Passing structural validat
 
 Revert the faulty change through a pull request or restore the last known good commit on `main` using the team's normal Git process. The workflow rebuilds and publishes that version after verification. Saved plans reopen against the deployed dataset and current time; a route that no longer fits shows a failure instead of silently substituting another walk. Local data is not a backup and is not migrated between devices or domains.
 
+## Interaction cross-check — 2 October 2026
+
+This follow-on starts from `main` at `0e9e366`, preserving the merged three-step redesign, repository audit and mobile-browser fixes. An earlier unmerged UI patch was not reapplied over this newer implementation.
+
+- **Recovery and discoverability:** custom stop times remain summarized when the Must-visit editor closes, including overrides from shared walks with no required stop. Invalid stop times have a visible error linked to the editor trigger; reopening focuses the invalid field rather than a preset or action button.
+- **Map interaction:** decorative pointer effects ignore the map and its controls. The hotspot cancels its pending frame when leaving, changing motion preference or backgrounding the page. No map animations, tile behavior or planner rules were changed.
+- **Regression evidence:** three component checks failed before these fixes and pass afterward. Ten DOM interaction tests cover stop-time recovery, shared overrides, rapid edits and card/itinerary/map/link consistency, saved opening after invalid input, shared reopening, repeated full-screen/Escape/resize, interrupted drawer closing, and backdrop motion. Full verification passes **1,839 tests across 27 files**, lint, typechecking and the production build. The added jsdom dependency is test-only and remains compatible with the documented Node versions.
+- **Verification boundary:** this pass uses a simulated DOM and a mocked map component for UI state checks, plus the existing installed-Leaflet gesture tests. It does not repeat browser rendering, touch, network-tile or physical-device checks. Local browser launch and cloud-localhost access were unavailable in this execution environment. The earlier browser findings below remain historical evidence for their respective commits; a browser pass is still required before publishing this follow-on.
+
 ## Mobile browser follow-up — 2 October 2026
 
 This follow-up starts from GitHub `main` at `9e55545`, after the repository audit below was merged and deployed. The original checkout's local work remains preserved.
