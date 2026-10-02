@@ -6,6 +6,7 @@ import { clock } from './format'
 import { useMediaQuery } from './hooks'
 import { Icon } from './icons'
 import { escapeHtml, mapTileConfiguration } from './mapTiles'
+import { releaseTouchZoom } from './mapLifecycle'
 
 // The planner and itinerary work independently of the optional map library and
 // third-party tile service. Only tiles for the viewed area are requested.
@@ -66,7 +67,8 @@ const accentColour = () => getComputedStyle(document.documentElement).getPropert
  * does not cancel it in remove(). Mark the transition finished first, so that
  * callback returns early instead of touching removed panes.
  */
-function removeMap(m: Leaflet.Map) {
+function removeMap(m: Leaflet.Map, L: typeof Leaflet) {
+  releaseTouchZoom(m, L)
   m.stop()
   ;(m as unknown as { _animatingZoom?: boolean })._animatingZoom = false
   m.remove()
@@ -275,7 +277,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
       container.removeEventListener('keydown', onReducedKeys)
       cancelDraw.current()
       retryTiles.current = null
-      if (m) removeMap(m)
+      if (m) removeMap(m, L)
       map.current = null
       layers.current = null
       routeCache.clear()

@@ -39,7 +39,7 @@ User testing found the previous layout cluttered, with no clear order of events,
 2. **Choose a walk.** Compact cards, each with a miniature of its route's shape. Hovering or focusing a card previews its route on the map; hovering a line on the map highlights its card. **Compare** opens the comparison table in place.
 3. **Head out.** The chosen walk's timeline, then one primary action, **Start in Google Maps**, with Share, Save and Copy beside it. Hovering a stop highlights its pin; the pin button pans the map to it (and, on phones, brings the map into view). Clicking a pin highlights its row. Exports (KML, GPX, calendar) and walk logging are tucked into disclosures.
 
-Saved walks, the field notebook, data provenance, privacy and the calibration log are in a drawer (the bookmark and menu buttons, or **Demo** for data notes). It slides in from the right on laptops and up from the bottom on phones.
+Saved walks, the field notebook, data provenance, privacy and the calibration log are in a drawer (the bookmark and menu buttons, or **Demo** for data notes). It slides in from the right on laptops and up from the bottom on phones. Its header stays visible while content scrolls. Touch controls have 44 px targets, editable fields use at least 16 px text, and the panel, drawer and expanded map respect device safe areas.
 
 **Motion explains change.** Tokens in `src/styles.css` (`--t1`/`--t2`/`--t3`, `--ease-out`, `--ease-spring`) drive every transition. Things that open slide and fade in; chosen things pop; a newly selected route draws itself from start to finish after the camera flies to it, and its pins pop in in order. While new walks are worked out, a thin bar runs along the map and old routes dim, so a press is always acknowledged. Reduced-motion turns all of it off, including map flights.
 
@@ -142,7 +142,7 @@ No accounts, tracking or analytics. Planning runs entirely in your browser. Your
 
 This is a working demo, not a verified pilot. To make it trustworthy, follow Week 1 of [ROADMAP.md](ROADMAP.md): walk the routes, check access, prices and hours, and record cover and steps, until `npm run data:check -- --production` passes. [MANIFEST.md](MANIFEST.md) explains every part of the project in detail.
 
-The 2 October 2026 repository audit passes lint, typechecking, 1,824 tests across 24 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. An additional 768-scenario campus matrix independently replays route timing, budgets and exact shared-plan rebuilding. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
+The 2 October 2026 repository audit and mobile follow-up pass lint, typechecking, 1,829 tests across 25 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. An additional 768-scenario campus matrix independently replays route timing, budgets and exact shared-plan rebuilding. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
 
 Three useful MIT Manipal additions for a future verified pilot are:
 

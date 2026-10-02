@@ -156,3 +156,10 @@
   .chip.tune { padding: 0 10px 0 9px; font-size: 0.82rem; gap: 5px; }
   .tune-row { gap: 6px; }
 }
+
+@media (pointer: coarse) {
+  .token { display: inline-block; min-width: 44px; min-height: 44px; }
+  .chip.tune, .tray-done { min-height: 44px; }
+  .stop-chip button, .add-stop { width: 44px; height: 44px; flex: none; }
+  .stop-chip { max-width: 100%; overflow-wrap: anywhere; }
+}
