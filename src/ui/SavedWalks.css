@@ -2,7 +2,7 @@
 .saved-backup > .btn { justify-self: start; }
 .saved-restore { display: grid; gap: 6px; min-width: 0; }
 .saved-restore label { font-size: 0.85rem; font-weight: 600; }
-.saved-restore input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; font: inherit; font-size: 0.8rem; padding: 8px; }
+.saved-restore input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; font: inherit; font-size: 16px; padding: 8px; }
 .saved-restore input::file-selector-button { font: inherit; margin-right: 8px; min-height: 32px; cursor: pointer; }
 .saved-backup .hint { margin: 0; }
 .saved-backup-status { margin: 0; font-size: 0.85rem; color: var(--fg); overflow-wrap: anywhere; }
@@ -21,3 +21,7 @@
 .saved-open:hover { background: var(--accent-soft); color: var(--accent); }
 .saved-open:hover svg { transform: translateY(-2px); }
 .saved-walks .btn { font-size: 0.8rem; padding: 0 10px; min-height: 38px; }
+
+@media (pointer: coarse) {
+  .saved-walks .btn, .saved-restore input::file-selector-button { min-height: 44px; }
+}

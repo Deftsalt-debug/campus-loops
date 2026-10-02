@@ -6,6 +6,7 @@ import { clock } from './format'
 import { useMediaQuery } from './hooks'
 import { Icon } from './icons'
 import { escapeHtml, mapTileConfiguration } from './mapTiles'
+import { releaseTouchZoom } from './mapLifecycle'
 
 // The planner and itinerary work independently of the optional map library and
 // third-party tile service. Only tiles for the viewed area are requested.
@@ -66,7 +67,8 @@ const accentColour = () => getComputedStyle(document.documentElement).getPropert
  * does not cancel it in remove(). Mark the transition finished first, so that
  * callback returns early instead of touching removed panes.
  */
-function removeMap(m: Leaflet.Map) {
+function removeMap(m: Leaflet.Map, L: typeof Leaflet) {
+  releaseTouchZoom(m, L)
   m.stop()
   ;(m as unknown as { _animatingZoom?: boolean })._animatingZoom = false
   m.remove()
@@ -275,7 +277,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
       container.removeEventListener('keydown', onReducedKeys)
       cancelDraw.current()
       retryTiles.current = null
-      if (m) removeMap(m)
+      if (m) removeMap(m, L)
       map.current = null
       layers.current = null
       routeCache.clear()
@@ -322,7 +324,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
           .addTo(routeGroup)
         const markers = L.layerGroup()
         const startMarker = L.marker(geometry.start, {
-          icon: L.divIcon({ className: '', html: '<div class="pin start">S</div>', iconSize: [32, 32] }),
+          icon: L.divIcon({ className: 'route-marker', html: '<div class="pin start">S</div>', iconSize: [32, 32] }),
           zIndexOffset: 1000,
           autoPanOnFocus: false,
         }).bindTooltip('', { direction: 'top', offset: [0, -14] })
@@ -333,7 +335,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
           const html = stop.passBy ? `<div class="pin pass" style="--i:${i}"></div>` : `<div class="pin" style="--i:${i}">${++stopNumber}</div>`
           const size: [number, number] = stop.passBy ? [14, 14] : [28, 28]
           return L.marker(stop.at, {
-            icon: L.divIcon({ className: '', html, iconSize: size }),
+            icon: L.divIcon({ className: 'route-marker', html, iconSize: size }),
             zIndexOffset: 900,
             autoPanOnFocus: false,
           }).bindTooltip('', { direction: 'top', offset: [0, -12] })
