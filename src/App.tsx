@@ -1,23 +1,27 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import osmSnapshot from '../data/osm/snapshot.json'
-import { calibrationSummaryText } from './ui/calibration'
 import { DatasetError, loadDataset } from './core/dataset/load'
 import { plan, rebuildPlan } from './core/planner/plan'
 import { decodeShare, encodeShare } from './core/share'
 import { toIst } from './core/time/clock'
 import type { Dataset, PlanResult } from './core/types'
-import { clearLogs, exportLogsJson, getLogStorageStatus, listLogs } from './storage/calibrationLog'
+import { listLogs } from './storage/calibrationLog'
 import { listSavedPlans, removeSavedPlan, savePlan } from './storage/savedPlans'
+import { AboutPanel } from './ui/AboutPanel'
 import { Backdrop } from './ui/Backdrop'
+import { Drawer, type DrawerTab } from './ui/Drawer'
 import { ripple } from './ui/effects'
-import { download, fromIstInput, istInputValue } from './ui/format'
-import { PlanCard } from './ui/PlanCard'
-import { PlanForm } from './ui/PlanForm'
-import { PlanComparison } from './ui/PlanComparison'
 import { FieldNotebook } from './ui/FieldNotebook'
-import { SavedWalks } from './ui/SavedWalks'
-import { RouteMap } from './ui/RouteMap'
+import { fromIstInput, istInputValue } from './ui/format'
+import { useMediaQuery } from './ui/hooks'
+import { Icon, LoopMark } from './ui/icons'
+import { MapDock } from './ui/MapDock'
+import { OutingBuilder } from './ui/OutingBuilder'
+import { PlanComparison } from './ui/PlanComparison'
 import { initialForm, sharedForm, toRequest, type FormState } from './ui/planningState'
+import type { StopFocus } from './ui/RouteMap'
+import { SavedWalks } from './ui/SavedWalks'
+import { WalkChooser } from './ui/WalkChooser'
+import { WalkDetail } from './ui/WalkDetail'
 
 const DATASETS = {
   demo: () => import('./data/manipal-demo.json'),
@@ -29,17 +33,6 @@ const REASON: Record<string, string> = {
   backBy: 'your back-by time',
   sunset: 'sunset',
   window: 'end of pilot hours',
-}
-
-function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
-  useEffect(() => {
-    const mq = window.matchMedia(query)
-    const onChange = () => setMatches(mq.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [query])
-  return matches
 }
 
 function useNow(intervalMs: number): Date {
@@ -63,6 +56,8 @@ function useNow(intervalMs: number): Date {
   return now
 }
 
+const smooth = (): ScrollBehavior => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth')
+
 export default function App() {
   const [dataset, setDataset] = useState<Dataset | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -70,20 +65,23 @@ export default function App() {
   const [shared, setShared] = useState<{ planId: string; note: string | null; blocked?: boolean } | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [view, setView] = useState<'list' | 'map'>('list')
-  const [toast, setToast] = useState<string | null>(null)
+  const [focus, setFocus] = useState<StopFocus | null>(null)
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [drawer, setDrawer] = useState<DrawerTab | null>(null)
+  const [toast, setToast] = useState<{ text: string; id: number; on: boolean } | null>(null)
+  const [savedBump, setSavedBump] = useState(0)
   const [logCount, setLogCount] = useState(() => listLogs().length)
   const [savedPlans, setSavedPlans] = useState(listSavedPlans)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const realNow = useNow(30_000)
-  // One map instance only: in the side pane on wide screens, behind the Map tab on phones.
+  // The panel and map sit side by side from this width; below it they stack.
   const wide = useMediaQuery('(min-width: 960px)')
 
   const applyLink = useCallback((ds: Dataset, hash: string) => {
     const decoded = decodeShare(hash)
     setSelectedId(null)
     setHoveredId(null)
-    setView('list')
+    setFocus(null)
     if (decoded.ok) {
       if (decoded.shared.datasetVersion !== ds.datasetVersion) {
         setShared({ planId: '', blocked: true, note: 'This walk uses a different version of the campus data. Its route needs updating before you use it.' })
@@ -131,9 +129,10 @@ export default function App() {
   }, [])
 
   const notify = useCallback((message: string) => {
-    setToast(message)
+    setToast((t) => ({ text: message, id: (t?.id ?? 0) + 1, on: true }))
     if (toastTimer.current) clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 3500)
+    // Keep the text while it fades out; the live region only announces new text.
+    toastTimer.current = setTimeout(() => setToast((t) => (t ? { ...t, on: false } : t)), 3500)
   }, [])
 
   const update = useCallback((patch: Partial<FormState>) => {
@@ -141,8 +140,9 @@ export default function App() {
     setShared(null) // editing leaves shared-link mode
   }, [])
 
-  // ---- Plan (deferred so typing stays smooth) ----
+  // ---- Plan (deferred so typing and tapping stay instant) ----
   const deferredForm = useDeferredValue(form)
+  const pending = form !== deferredForm
   // Stable unless the preview time or the 30-second clock changes, so hovering doesn't re-plan.
   const previewAt = deferredForm?.previewAt ?? ''
   const previewNow = useMemo(() => previewAt ? fromIstInput(previewAt) : null, [previewAt])
@@ -163,8 +163,14 @@ export default function App() {
   }, [dataset, deferredForm, shared, now])
 
   const plans = useMemo(() => result?.plans ?? [], [result])
+  // The card a person taps answers immediately; the map and itinerary follow in
+  // a deferred render, so the press paints first and the heavier work never delays it.
+  const deferredSelectedId = useDeferredValue(selectedId)
   // If the chosen plan disappears (inputs changed), fall back to the best one.
-  const selected = plans.find((p) => p.id === selectedId) ?? plans[0] ?? null
+  const chosen = plans.find((p) => p.id === selectedId) ?? plans[0] ?? null
+  const selected = plans.find((p) => p.id === deferredSelectedId) ?? plans[0] ?? null
+  const selectedIndex = selected ? plans.indexOf(selected) : -1
+  const activeFocus = focus && focus.planId === selected?.id ? focus : null
 
   // Keep the address bar as a shareable link to the selected plan.
   const shareHash = dataset && deferredForm && selected
@@ -186,14 +192,28 @@ export default function App() {
   const onSelect = useCallback((id: string) => {
     setSelectedId(id)
     setHoveredId(null)
+    setFocus((f) => (f?.planId === id ? f : null))
   }, [])
+  const onFocusStop = useCallback((next: StopFocus | null) => setFocus(next), [])
 
-  const saveCurrent = () => {
-    if (!selected || !shareHash) return
-    const status = savePlan({ hash: shareHash, name: selected.name, savedAt: new Date().toISOString() })
+  // "Show on map" from the itinerary: on a phone the map is above, so bring it into view.
+  useEffect(() => {
+    if (!activeFocus?.reveal || wide) return
+    const dock = document.querySelector('.map-dock')
+    if (!dock) return
+    const r = dock.getBoundingClientRect()
+    if (r.top < 0 || r.bottom > window.innerHeight) dock.scrollIntoView({ block: 'center', behavior: smooth() })
+  }, [activeFocus, wide])
+
+  const selectedName = selected?.name
+  const saveCurrent = useCallback(() => {
+    if (!selectedName || !shareHash) return
+    const status = savePlan({ hash: shareHash, name: selectedName, savedAt: new Date().toISOString() })
     notify(status === 'saved' ? 'Walk saved on this device' : status === 'full' ? 'Saved walks are full. Remove one to make room.' : status === 'corrupt' ? 'Saved walks need repair. Open Saved walks to export readable entries and repair.' : 'Storage is unavailable in this browser')
+    if (status === 'saved') setSavedBump((n) => n + 1)
     setSavedPlans(listSavedPlans())
-  }
+  }, [selectedName, shareHash, notify])
+  const refreshLogs = useCallback(() => setLogCount(listLogs().length), [])
 
   const removeSaved = (hash: string) => {
     const ok = removeSavedPlan(hash)
@@ -201,14 +221,9 @@ export default function App() {
     setSavedPlans(listSavedPlans())
   }
 
-  const changeView = (next: 'list' | 'map') => {
-    setView(next)
-    document.getElementById(`view-${next}`)?.focus()
-  }
-
   if (loadError) {
     return (
-      <main className="panel">
+      <main className="panel solo">
         <p className="notice danger" role="alert">{loadError}</p>
         <button type="button" className="btn" onClick={() => window.location.reload()}>Reload campus data</button>
       </main>
@@ -216,18 +231,17 @@ export default function App() {
   }
   if (!dataset || !form) {
     return (
-      <main className="panel" aria-busy="true">
+      <main className="panel solo loading" aria-busy="true">
         <Backdrop />
+        <span className="loading-mark"><LoopMark size={34} /></span>
         <p className="hint">Loading campus map…</p>
       </main>
     )
   }
 
-  const map = (
-    <RouteMap dataset={dataset} plans={plans} selectedId={selected?.id ?? null} hoveredId={hoveredId} startSec={startSec} onSelect={onSelect} />
-  )
   const blocker = result?.blockers[0]
   const isDemo = dataset.isFixture
+  const startName = dataset.starts.find((s) => s.id === (deferredForm ?? form).startId)?.name ?? 'Campus'
 
   return (
     <>
@@ -235,55 +249,56 @@ export default function App() {
       <a className="skip-link" href="#outings" onClick={(e) => { e.preventDefault(); document.getElementById('outings')?.focus() }}>Skip to suggested walks</a>
       <div className="app">
         <main className="panel">
-          <header className="brand">
-            <div className="logo" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <path d="M5 18c-2-4 0-9 4-11s9-1 10 3-2 7-6 7-5-3-3-5 4-1 4 1" />
-                <circle cx="5" cy="18" r="1.6" fill="currentColor" />
-              </svg>
+          <header className="topbar">
+            <div className="brand">
+              <div className="logo" aria-hidden="true"><LoopMark /></div>
+              <div>
+                <p className="eyebrow">MIT Manipal · On foot</p>
+                <h1>Campus Loops</h1>
+              </div>
             </div>
-            <div style={{ minWidth: 0 }}>
-              <p className="eyebrow">MIT Manipal · On foot</p>
-              <h1>Campus Loops</h1>
-            </div>
+            <nav className="topbar-actions" aria-label="Your things">
+              {isDemo && <button type="button" className="demo-pill" aria-label="Demo data: about this data" onClick={() => setDrawer('about')}><Icon name="info" size={14} />Demo<span className="demo-word">&nbsp;data</span></button>}
+              <button type="button" className="icon-btn" onClick={() => setDrawer('saved')} aria-label={`Saved walks, ${savedPlans.length}`}>
+                <Icon name="bookmark" />
+                {savedPlans.length > 0 && <span key={savedBump} className={`icon-count${savedBump ? ' bump' : ''}`}>{savedPlans.length}</span>}
+              </button>
+              <button type="button" className="icon-btn" onClick={() => setDrawer('notes')} aria-label="Field notebook, privacy and data"><Icon name="menu" /></button>
+            </nav>
           </header>
-          <div className="intro">
-            <p className="intro-title">A little time.<br />A good walk.</p>
-            <p>Pick your company, your budget, and the time you have. Find a way out—and back.</p>
-          </div>
-          {isDemo && (
-            <details className="demo-note">
-              <summary>Public demo · Check before you go</summary>
-              <span>
-                <b>Demo data.</b> Paths and places come from OpenStreetMap and haven't been walked or checked yet. Prices and some opening
-                hours are placeholders. Check before you go.
-              </span>
-              {dataset.datasetVersion.startsWith('manipal-demo-') && <p>
-                Map snapshot: <time dateTime={osmSnapshot.retrievedAt.slice(0, 10)}>{osmSnapshot.retrievedAt.slice(0, 10)}</time>.
-                {' '}Checked against OpenStreetMap on <time dateTime={osmSnapshot.checkedLiveOn}>{osmSnapshot.checkedLiveOn}</time>.
-                {' '}Starts and stops use nearby mapped paths; entrances, gates, steps and shelter still need local checks.
-                {' '}<a href="https://www.openstreetmap.org/#map=16/13.3475/74.7925" target="_blank" rel="noopener noreferrer">View the source map</a>.
-              </p>}
-            </details>
-          )}
 
-          {form.previewAt && !previewError && (
-            <div className="preview-notice" role="status">
-              <span><b>Previewing a future or past walk</b><small>{new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' }).format(fromIstInput(form.previewAt)!)} IST</small></span>
-              <button type="button" className="btn ghost" onClick={() => update({ previewAt: '' })}>Plan from now</button>
+          <section className="step step-1" aria-labelledby="step-1">
+            <p className="tagline">A little time. A good walk.</p>
+            <h2 className="step-label" id="step-1"><span className="step-num" aria-hidden="true">1</span>Your outing</h2>
+            <OutingBuilder dataset={dataset} state={form} onChange={update} durationError={durationError} budgetError={budgetError} previewError={previewError} />
+          </section>
+
+          <MapDock
+            wide={wide}
+            pending={pending}
+            title={selected?.name ?? null}
+            subtitle={selected ? `Walk ${selectedIndex + 1} · from ${startName}` : 'Explore the neighbourhood'}
+            dataset={dataset}
+            plans={plans}
+            selectedId={selected?.id ?? null}
+            hoveredId={hoveredId}
+            startSec={startSec}
+            focus={activeFocus}
+            onSelect={onSelect}
+            onHover={setHoveredId}
+            onFocusStop={onFocusStop}
+          />
+
+          <section id="outings" tabIndex={-1} className="step step-2" aria-labelledby="step-2" aria-busy={pending}>
+            <div className="step-head">
+              <h2 className="step-label" id="step-2"><span className="step-num" aria-hidden="true">2</span>Choose a walk</h2>
+              <span className="step-meta" role="status">{plans.length ? `${plans.length} walk${plans.length === 1 ? '' : 's'} found` : ''}</span>
+              {plans.length >= 2 && (
+                <button type="button" className="link-btn compare-toggle" aria-expanded={compareOpen} aria-controls="compare" onClick={() => setCompareOpen((v) => !v)}>
+                  Compare<Icon name="chevron" size={16} />
+                </button>
+              )}
             </div>
-          )}
-
-          <PlanForm dataset={dataset} state={form} onChange={update} durationError={durationError} budgetError={budgetError} previewError={previewError} />
-
-          <SavedWalks savedPlans={savedPlans}
-            onOpen={(hash) => { window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`); applyLink(dataset, hash) }}
-            onRemove={removeSaved} onImported={() => setSavedPlans(listSavedPlans())} notify={notify} />
-
-          <section id="outings" tabIndex={-1} aria-label="Suggested outings" className="outings" aria-busy={form !== deferredForm}>
-            <div className="results-heading"><h2>Your way out</h2><span role="status">{plans.length ? `${plans.length} walk${plans.length === 1 ? '' : 's'} found` : 'Let’s find your walk'}</span></div>
-            {shared?.note && <div className="notice"><p>{shared.note}</p>{shared.blocked && <button type="button" className="btn" onClick={() => { setShared(null); setForm(initialForm(dataset)) }}>Plan again</button>}</div>}
-            {shared?.planId && plans.length > 0 && <p className="notice"><span>Showing a shared plan, checked again just now.</span></p>}
 
             {result?.context && (
               <p className="context" aria-live="polite">
@@ -292,6 +307,9 @@ export default function App() {
                 <span>Sunset {result.context.sunsetIst}</span>
               </p>
             )}
+
+            {shared?.note && <div className="notice"><p>{shared.note}</p>{shared.blocked && <button type="button" className="btn" onClick={() => { setShared(null); setForm(initialForm(dataset)) }}>Plan again</button>}</div>}
+            {shared?.planId && plans.length > 0 && <p className="notice soft"><span>Showing a shared plan, checked again just now.</span></p>}
 
             {blocker && (
               <div className={`notice ${blocker.code === 'PLAN_OUTDATED' ? '' : 'danger'}`} role="alert">
@@ -314,69 +332,69 @@ export default function App() {
               </div>
             )}
 
-            <PlanComparison plans={plans} selectedId={selected?.id ?? null} onSelect={onSelect} />
-
-            {plans.length > 0 && (
-              <div className="view-switch" role="tablist" aria-label="View">
-                {(['list', 'map'] as const).map((v) => <button key={v} id={`view-${v}`} type="button" role="tab" aria-controls={`${v}-view`} tabIndex={view === v ? 0 : -1} aria-selected={view === v} onClick={() => setView(v)} onKeyDown={(e) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); changeView(e.key === 'Home' ? 'list' : e.key === 'End' ? 'map' : view === 'list' ? 'map' : 'list') } }}>{v === 'list' ? 'Itineraries' : 'Map'}</button>)}
+            {plans.length >= 2 && (
+              <div id="compare" className={`reveal${compareOpen ? ' is-open' : ''}`} inert={!compareOpen}>
+                <div className="reveal-clip"><PlanComparison plans={plans} selectedId={chosen?.id ?? null} onSelect={onSelect} /></div>
               </div>
             )}
-            {!wide && <div id="map-view" role="tabpanel" aria-labelledby="view-map" hidden={view !== 'map' || plans.length === 0}>
-              {view === 'map' && plans.length > 0 && <><p className="map-caption">{selected?.name} · Switch to Itineraries to choose another walk.</p><div className="map-inline">{map}</div></>}
-            </div>}
 
-            <div className="plans" id="list-view" role={wide ? undefined : 'tabpanel'} aria-labelledby={wide ? undefined : 'view-list'} hidden={!wide && view !== 'list' && plans.length > 0}>
-              {plans.map((p, i) => (
-                <PlanCard
-                  key={p.id}
-                  plan={p}
-                  index={i}
-                  dataset={dataset}
-                  selected={p.id === selected?.id}
-                  startSec={startSec ?? 0}
-                  startAt={now}
-                  pace={deferredForm?.pace ?? form.pace}
-                  shareUrl={shareUrl}
-                  onSelect={() => onSelect(p.id)}
-                  onHover={(h) => setHoveredId(h && p.id !== selected?.id ? p.id : null)}
-                  notify={notify}
-                  onLogged={() => setLogCount(listLogs().length)}
-                  onSave={saveCurrent}
-                  saved={savedPlans.some((s) => s.hash === shareHash) && p.id === selected?.id}
-                />
-              ))}
-            </div>
+            <WalkChooser dataset={dataset} plans={plans} selectedId={chosen?.id ?? null} linkedId={hoveredId} onSelect={onSelect} onHover={setHoveredId} />
           </section>
 
-          <FieldNotebook dataset={dataset} notify={notify} />
+          {selected && startSec !== null && (
+            <section className="step step-3" aria-labelledby="step-3">
+              <h2 className="step-label" id="step-3"><span className="step-num" aria-hidden="true">3</span>Head out</h2>
+              <WalkDetail
+                key={selected.id}
+                plan={selected}
+                index={selectedIndex}
+                count={plans.length}
+                dataset={dataset}
+                startSec={startSec}
+                startAt={now}
+                pace={deferredForm?.pace ?? form.pace}
+                shareUrl={shareUrl}
+                focus={activeFocus}
+                followMap={wide}
+                onFocusStop={onFocusStop}
+                notify={notify}
+                onLogged={refreshLogs}
+                onSave={saveCurrent}
+                saved={savedPlans.some((s) => s.hash === shareHash)}
+              />
+            </section>
+          )}
 
           <footer className="foot">
             <p>{dataset.licence}</p>
             <p>
-              Map attribution is shown on the map. The tile provider sees your IP address and the map area you view. Shared links contain the
-              start point, route and preferences. Saved walks, field notes and calibration logs stay on this device unless you export them. No accounts or analytics.
+              <button type="button" className="link-btn" onClick={() => setDrawer('about')}>About, privacy &amp; data</button>
+              {' · '}Times are IST · Daylight outings only
             </p>
-            <details className="more calib">
-              <summary>Calibration log ({logCount})</summary>
-              {getLogStorageStatus() === 'corrupt' && <p className="notice" role="status">Some calibration data is unreadable. New logs are paused to preserve it. Export readable logs first; Clear then removes all stored calibration data so you can start again.</p>}
-              <p className="hint">{calibrationSummaryText(listLogs())}</p>
-              <div className="row">
-                <button type="button" className="btn" onPointerDown={ripple} onClick={() => download('campus-loops-walks.json', 'application/json', exportLogsJson())}>
-                  Export JSON
-                </button>
-                <button type="button" className="btn ghost" onPointerDown={ripple} onClick={() => { const ok = clearLogs(); setLogCount(listLogs().length); notify(ok ? 'Calibration log cleared' : 'Storage is unavailable in this browser') }}>
-                  Clear
-                </button>
-                <button type="button" className="btn ghost" onPointerDown={ripple} onClick={() => setLogCount(listLogs().length)}>Refresh</button>
-              </div>
-            </details>
-            <p>Data version {dataset.datasetVersion}. Daylight outings only. Times are India Standard Time.</p>
-            <p><a href="https://github.com/Deftsalt-debug/campus-loops/issues" target="_blank" rel="noopener noreferrer">Report a path, price, or app issue</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Map data licence</a></p>
           </footer>
         </main>
-        {wide && <aside className="map-pane" aria-label="Map"><div className="map-heading"><span className="eyebrow">Explore the neighbourhood</span><b>{selected?.name ?? 'Your walk starts here'}</b><span>Start and finish together. Numbered pins follow your itinerary.</span></div><div className="map-frame">{map}</div></aside>}
       </div>
-      {toast && <div className="toast" role="status">{toast}</div>}
+
+      <Drawer
+        tab={drawer}
+        onTab={setDrawer}
+        onClose={() => setDrawer(null)}
+        panels={{
+          saved: {
+            label: 'Saved', count: savedPlans.length,
+            render: () => (
+              <SavedWalks savedPlans={savedPlans}
+                onOpen={(hash) => { setDrawer(null); window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`); applyLink(dataset, hash) }}
+                onRemove={removeSaved} onImported={() => setSavedPlans(listSavedPlans())} notify={notify} />
+            ),
+          },
+          notes: { label: 'Notebook', render: () => <FieldNotebook dataset={dataset} notify={notify} /> },
+          about: { label: 'About', render: () => <AboutPanel dataset={dataset} logCount={logCount} onLogsChanged={refreshLogs} notify={notify} /> },
+        }}
+      />
+      <div className={`toast${toast?.on ? ' is-on' : ''}`} role="status" aria-live="polite">
+        {toast && <span key={toast.id}>{toast.text}</span>}
+      </div>
     </>
   )
 }

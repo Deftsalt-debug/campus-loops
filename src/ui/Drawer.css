@@ -1,0 +1,60 @@
+/* A sheet for secondary tools: from the right on wide screens, the bottom on phones. */
+.drawer {
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: 0;
+  width: min(460px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  background: var(--surface-solid);
+  color: var(--fg);
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.18);
+  animation: drawer-in var(--t3) var(--ease-out);
+  overscroll-behavior: contain;
+}
+.drawer::backdrop { background: rgba(10, 16, 13, 0.36); backdrop-filter: blur(2px); animation: fade var(--t3) var(--ease-out); }
+.drawer.is-closing { animation: drawer-out var(--t2) cubic-bezier(0.4, 0, 1, 1) forwards; }
+.drawer.is-closing::backdrop { opacity: 0; transition: opacity var(--t2); }
+@keyframes drawer-in { from { transform: translateX(100%); } }
+@keyframes drawer-out { to { transform: translateX(100%); } }
+
+.drawer-sheet { display: flex; flex-direction: column; height: 100%; }
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 14px 14px 0 18px; border-bottom: 1px solid var(--line);
+}
+.drawer-tabs { display: flex; gap: 4px; overflow-x: auto; }
+.drawer-tabs button {
+  position: relative; display: inline-flex; align-items: center;
+  min-height: 46px; padding: 0 12px; border: 0; background: none; cursor: pointer;
+  font-weight: 600; color: var(--muted); transition: color var(--fast);
+}
+.drawer-tabs button::after {
+  content: ''; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0;
+  background: var(--accent); transform: scaleX(0); transition: transform var(--t2) var(--ease-out);
+}
+.drawer-tabs button:hover { color: var(--fg); }
+.drawer-tabs button[aria-selected='true'] { color: var(--fg); }
+.drawer-tabs button[aria-selected='true']::after { transform: scaleX(1); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 18px 18px 32px; animation: rise var(--t2) var(--ease-out); }
+.drawer-body:focus-visible { outline-offset: -3px; }
+
+@media (max-width: 600px) {
+  .drawer {
+    margin: auto 0 0;
+    width: 100vw;
+    height: min(88dvh, 760px);
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.2);
+    animation-name: sheet-in;
+  }
+  .drawer.is-closing { animation-name: sheet-out; }
+  .drawer-head { padding-top: 22px; position: relative; }
+  .drawer-head::before {
+    content: ''; position: absolute; top: 8px; left: 50%; width: 40px; height: 4px; margin-left: -20px;
+    border-radius: 4px; background: var(--line);
+  }
+  @keyframes sheet-in { from { transform: translateY(100%); } }
+  @keyframes sheet-out { to { transform: translateY(100%); } }
+}

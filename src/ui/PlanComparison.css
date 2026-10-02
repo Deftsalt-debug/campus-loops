@@ -1,4 +1,4 @@
-.plan-comparison { margin: 16px 0; min-width: 0; }
+.plan-comparison { min-width: 0; }
 .comparison-scroll { overflow-x: auto; max-width: 100%; border: 1px solid var(--line); border-radius: 12px; }
 .comparison-scroll table { width: 100%; min-width: 440px; border-collapse: collapse; font-size: .8rem; text-align: left; }
 .comparison-scroll th, .comparison-scroll td { padding: 10px; vertical-align: top; border-bottom: 1px solid var(--line); }

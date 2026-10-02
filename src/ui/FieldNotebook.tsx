@@ -82,8 +82,7 @@ export function FieldNotebook({ dataset, notify }: Props) {
   }
 
   return (
-    <details className="more card field-notebook">
-      <summary>Campus field notebook <span className="count">{snapshot.notes.length}</span></summary>
+    <div className="field-notebook">
       <p className="hint">Keep what you notice on campus: a meal price, opening hours or a blocked entrance. These are your observations, not verified route data. They do not change plans.</p>
       <p className="hint" id={`${id}-privacy`}>Only in this browser; clearing site data removes notes. Nothing is sent automatically. Keep notes about places and avoid personal details.</p>
 
@@ -138,6 +137,6 @@ export function FieldNotebook({ dataset, notify }: Props) {
           <button type="button" className="btn ghost" disabled={snapshot.status !== 'ready'} aria-label={`Remove ${LABELS[note.category].toLowerCase()} observation for ${note.placeName} from ${istInputValue(new Date(note.observedAt)).replace('T', ' ')} IST`} onClick={() => remove(note.id)}>Remove note</button>
         </li>)}
       </ul>}
-    </details>
+    </div>
   )
 }

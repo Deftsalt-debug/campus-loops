@@ -1,0 +1,60 @@
+/* Step 2: walk choices. Each card carries a miniature of its route. */
+.walks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.walks > li { animation: rise var(--t3) var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
+
+.walk {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px 12px 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: transform var(--t2) var(--ease-out), border-color var(--t2) var(--ease-out), box-shadow var(--t2) var(--ease-out), background var(--t2) var(--ease-out);
+}
+.walk:hover, .walk.is-linked { transform: translateY(-2px); border-color: rgba(var(--glow), 0.45); box-shadow: var(--shadow-lift); }
+.walk:active { transform: translateY(0) scale(0.99); }
+.walk[aria-pressed='true'] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); cursor: default; }
+.walk[aria-pressed='true']:hover { transform: none; }
+
+.walk-thumb {
+  width: 52px; height: 52px; border-radius: 12px;
+  background: radial-gradient(rgba(var(--dot), 0.22) 0.8px, transparent 1.1px) 0 0 / 6px 6px, var(--surface-2);
+  transition: background-color var(--t2) var(--ease-out);
+}
+.walk-thumb path {
+  fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 0;
+  transition: stroke var(--t2) var(--ease-out);
+}
+.walk-thumb circle { fill: var(--fg); stroke: var(--surface-solid); stroke-width: 1.5; }
+.walk:hover .walk-thumb path, .walk.is-linked .walk-thumb path { stroke: var(--accent); animation: draw 800ms var(--ease-out); }
+.walk[aria-pressed='true'] .walk-thumb { background-color: var(--accent-soft); }
+.walk[aria-pressed='true'] .walk-thumb path { stroke: var(--accent); stroke-width: 2.6; animation: draw 900ms var(--ease-out); }
+
+.walk-body { display: grid; gap: 3px; min-width: 0; }
+.walk-name { font-weight: 650; font-size: 0.96rem; line-height: 1.3; display: flex; gap: 8px; align-items: baseline; }
+.walk-num {
+  flex: none; width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center;
+  background: var(--surface-2); font-size: 0.7rem; font-weight: 700; transform: translateY(-1px);
+  transition: background var(--t2) var(--ease-out), color var(--t2) var(--ease-out);
+}
+.walk[aria-pressed='true'] .walk-num { background: var(--accent); color: var(--accent-ink); }
+.walk-fit { color: var(--accent); font-size: 0.8rem; font-weight: 600; }
+.walk-stats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; color: var(--muted); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
+.walk-stats > span { padding: 1px 8px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; transition: background var(--t2) var(--ease-out); }
+.walk[aria-pressed='true'] .walk-stats > span { background: var(--accent-soft); color: var(--fg); }
+
+.walk-tick {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  border: 1.5px solid var(--line); color: transparent;
+  transition: border-color var(--t2) var(--ease-out), background var(--t2) var(--ease-out), color var(--t2) var(--ease-out);
+}
+.walk:hover .walk-tick { border-color: rgba(var(--glow), 0.6); }
+.walk[aria-pressed='true'] .walk-tick { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); animation: pop var(--t3) var(--ease-spring); }
+
+/* Comparison table, revealed in place */
+.plan-comparison { display: grid; gap: 8px; padding-bottom: 4px; }

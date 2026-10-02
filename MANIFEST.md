@@ -73,7 +73,7 @@ Other commands:
 3. **Time** (30–90 min), **budget per person**, up to **two must-visit places**, and **Include a café**.
 4. **More options:** pace (relaxed 1.0 m/s, normal 1.2 m/s), **Back by** (e.g. a hostel in-time), **Avoid steps**, **Rain mode**, **Plan as if it's…** (preview another time).
 5. **Results** update live: up to 3 different plans. Hover a card to preview its route on the map, and click to select it. The selected card shows a timeline with clock times, warnings (placeholder prices or hours, steps, old data), and actions.
-6. **Actions:** Open in Google Maps · Share (system share sheet or copy link) · Copy text · KML for Google My Maps · GPX · **Add to calendar** (.ics with the itinerary and a 10-minute reminder) · *Walked it? Log the real time*.
+6. **Actions:** Start in Google Maps · Share (system share sheet or copy link) · Copy text · KML for Google My Maps · GPX · **Add to calendar** (.ics with the itinerary and a 10-minute reminder) · *Walked it? Log the real time*.
 7. On a phone, use the **List / Map** switch above the results.
 
 ---
@@ -82,7 +82,7 @@ Other commands:
 
 | Option | What happens | Accuracy |
 |---|---|---|
-| **Open in Google Maps** | Opens walking directions: start → your stops (in order) → back to start. Up to three waypoints preserve all planned visits, then add shaping points if space remains. No API key. | The three-waypoint default fits mobile browsers as well as desktop and the Maps app. Google chooses its own paths between points, so its route and times may differ. Use KML/GPX for the exact drawn route. |
+| **Start in Google Maps** | Opens walking directions: start → your stops (in order) → back to start. Up to three waypoints preserve all planned visits, then add shaping points if space remains. No API key. | The three-waypoint default fits mobile browsers as well as desktop and the Maps app. Google chooses its own paths between points, so its route and times may differ. Use KML/GPX for the exact drawn route. |
 | **KML for Google My Maps** | Download the KML, go to https://www.google.com/mymaps → *Create a new map* → *Import* → pick the file. | Exact line, stop pins and descriptions. It then shows up in the Google Maps app under **Saved → Maps**. |
 | **GPX** | For other apps (Organic Maps, Strava, Komoot…). | Exact line. |
 
@@ -146,12 +146,13 @@ src/core/            framework-free logic (lint blocks React imports here)
   export/            googleMaps.ts, files.ts (KML, GPX, text)
   dataset/           validate.ts, load.ts
   geo.ts, share.ts, identifiers.ts, calibration.ts, types.ts
-src/ui/              PlanForm, PlanCard, RouteMap (Leaflet), Backdrop (dot grid), effects, format
+src/ui/              OutingBuilder (sentence + tray), WalkChooser, WalkDetail, MapDock + RouteMap (Leaflet),
+                     Drawer, AboutPanel, SavedWalks, FieldNotebook, PlanComparison, Backdrop, effects, format
 src/storage/         calibrationLog.ts, savedPlans.ts, fieldNotes.ts (localStorage, fail safely)
 src/data/            manipal-demo.json, fixtures/pilot-fixture.json
 scripts/             import-osm.ts, osm-rules.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
 data/osm/            raw OSM snapshot, provenance + elevation cache (ODbL)
-tests/               21 files; see RELEASE.md for the latest QA checkpoint
+tests/               22 files; see RELEASE.md for the latest QA checkpoint
 .github/workflows/   deploy.yml (verify → build → GitHub Pages)
 ROADMAP.md           product plan, decisions, weekly checklists
 ```
@@ -201,7 +202,7 @@ Browser QA: the loop route line starts and ends on the start pin and passes thro
 
 - **No accounts, analytics or tracking.** Planning runs in the browser. The OSM tile server sees visitors' IP addresses and the map areas they view. Google sees route points when someone opens a Google Maps link. Share links aren't secret.
 - **OpenStreetMap data is ODbL.** The demo dataset and `data/osm/` are derived databases: keep the attribution (it's in the footer, README, KML and GPX) and share any changes to the data under the ODbL.
-- **OSM tile server:** fine for a small pilot, but its [usage policy](https://operations.osmfoundation.org/policies/tiles/) forbids heavy use. Switch providers (e.g. MapTiler, Stadia, or self-hosted) before wider launch: change `TILE_URL` in `src/ui/RouteMap.tsx`.
+- **OSM tile server:** fine for a small pilot, but its [usage policy](https://operations.osmfoundation.org/policies/tiles/) forbids heavy use. Switch providers (e.g. MapTiler, Stadia, or self-hosted) before wider launch: set the `VITE_MAP_TILE_*` build variables described in the README.
 - **Code licence:** none chosen yet, so it's all rights reserved by default. If you want others to reuse it, add a `LICENSE` (MIT is common for student projects).
 
 ---

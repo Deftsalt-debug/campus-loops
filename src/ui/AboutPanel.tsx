@@ -1,0 +1,62 @@
+import osmSnapshot from '../../data/osm/snapshot.json'
+import type { Dataset } from '../core/types'
+import { clearLogs, exportLogsJson, getLogStorageStatus, listLogs } from '../storage/calibrationLog'
+import { calibrationSummaryText } from './calibration'
+import { ripple } from './effects'
+import { download } from './format'
+
+interface Props {
+  dataset: Dataset
+  logCount: number
+  onLogsChanged: () => void
+  notify: (message: string) => void
+}
+
+/** Data provenance, privacy, and the calibration log: everything the walk itself does not need. */
+export function AboutPanel({ dataset, logCount, onLogsChanged, notify }: Props) {
+  return (
+    <div className="about">
+      {dataset.isFixture && (
+        <section className="notice">
+          <p><b>Public demo · Check before you go.</b> Paths and places come from OpenStreetMap and haven't been walked or checked yet.
+            Prices and some opening hours are placeholders.</p>
+          {dataset.datasetVersion.startsWith('manipal-demo-') && <p>
+            Map snapshot: <time dateTime={osmSnapshot.retrievedAt.slice(0, 10)}>{osmSnapshot.retrievedAt.slice(0, 10)}</time>.
+            {' '}Checked against OpenStreetMap on <time dateTime={osmSnapshot.checkedLiveOn}>{osmSnapshot.checkedLiveOn}</time>.
+            {' '}Starts and stops use nearby mapped paths; entrances, gates, steps and shelter still need local checks.
+            {' '}<a href="https://www.openstreetmap.org/#map=16/13.3475/74.7925" target="_blank" rel="noopener noreferrer">View the source map</a>.
+          </p>}
+        </section>
+      )}
+
+      <section>
+        <h3>Privacy</h3>
+        <p className="hint">
+          Map attribution is shown on the map. The tile provider sees your IP address and the map area you view. Shared links contain the
+          start point, route and preferences. Saved walks, field notes and calibration logs stay on this device unless you export them. No accounts or analytics.
+        </p>
+      </section>
+
+      <section className="calib">
+        <h3>Calibration log <span className="count">{logCount}</span></h3>
+        {getLogStorageStatus() === 'corrupt' && <p className="notice" role="status">Some calibration data is unreadable. New logs are paused to preserve it. Export readable logs first; Clear then removes all stored calibration data so you can start again.</p>}
+        <p className="hint">{calibrationSummaryText(listLogs())}</p>
+        <div className="row">
+          <button type="button" className="btn" onPointerDown={ripple} onClick={() => download('campus-loops-walks.json', 'application/json', exportLogsJson())}>Export JSON</button>
+          <button type="button" className="btn ghost" onPointerDown={ripple} onClick={() => { const ok = clearLogs(); onLogsChanged(); notify(ok ? 'Calibration log cleared' : 'Storage is unavailable in this browser') }}>Clear</button>
+          <button type="button" className="btn ghost" onPointerDown={ripple} onClick={onLogsChanged}>Refresh</button>
+        </div>
+      </section>
+
+      <section>
+        <h3>Data</h3>
+        <p className="hint">{dataset.licence}</p>
+        <p className="hint">Data version {dataset.datasetVersion}. Daylight outings only. Times are India Standard Time.</p>
+        <p className="hint">
+          <a href="https://github.com/Deftsalt-debug/campus-loops/issues" target="_blank" rel="noopener noreferrer">Report a path, price, or app issue</a>
+          {' · '}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Map data licence</a>
+        </p>
+      </section>
+    </div>
+  )
+}

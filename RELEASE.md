@@ -15,7 +15,7 @@ npm run data:check -- src/data/manipal-demo.json
 npm audit --audit-level=high
 ```
 
-Use `npm run preview` to check the build, including loading it under the `/campus-loops/` sub-path. Verify phone and desktop layouts, keyboard navigation, light/dark themes, route selection, Map/List tabs, **Show entire route**, the after-sunset preview, a valid shared plan, an invalid shared plan, saving/reopening/removing plans, Google Maps, KML/GPX exports, and logging/exporting/clearing a real walking time. Search the campus catalogue, add two must-visits, remove one and check unavailable places; try a short class gap with different return buffers. Check that returning to a backgrounded tab refreshes the departure/deadline. Block the tile host once to check the map's failure message and usable itinerary. Test with storage blocked to check that Save/logging reports failure.
+Use `npm run preview` to check the build, including loading it under the `/campus-loops/` sub-path. Verify phone and desktop layouts, keyboard navigation, light/dark themes, each sentence editor (occasion, start, time, budget), Must-visit and Options, route selection from cards and from the map, timeline ↔ pin linking, the phone map's expand and two-finger hint, the drawer, **Show entire route**, the after-sunset preview, a valid shared plan, an invalid shared plan, saving/reopening/removing plans, **Start in Google Maps**, KML/GPX exports, and logging/exporting/clearing a real walking time. Search the campus catalogue, add two must-visits, remove one and check unavailable places; try a short class gap with different return buffers. Check that returning to a backgrounded tab refreshes the departure/deadline. Block the tile host once to check the map's failure message and usable itinerary. Test with storage blocked to check that Save/logging reports failure.
 
 The GitHub workflow runs automated checks before uploading `dist/`. Deployment occurs only from `main`; pull requests and workflow runs from other branches cannot publish. Set **Settings → Pages → Source = GitHub Actions**. Require the **verify** job on pull requests in branch protection. Enable Dependabot alerts and private vulnerability reporting in repository settings.
 
@@ -41,6 +41,27 @@ The current demo is expected to fail this last check. Passing structural validat
 ## Rolling back
 
 Revert the faulty change through a pull request or restore the last known good commit on `main` using the team's normal Git process. The workflow rebuilds and publishes that version after verification. Saved plans reopen against the deployed dataset and current time; a route that no longer fits shows a failure instead of silently substituting another walk. Local data is not a backup and is not migrated between devices or domains.
+
+## Fifth review — interface flow and map responsiveness (2 October 2026)
+
+User testing reported a cluttered page with no clear order of events, and a map that lagged behind its buttons. This review redesigns the interface around **describe → choose → go** without removing any feature. See [How the interface works](README.md#how-the-interface-works).
+
+- **Flow.** The eight occasion tiles and long form became one editable sentence with an editor tray, plus a Café stop / Must-visit / Options row; Options counts and summarises anything changed from the occasion defaults. Walk cards are compact, with route-shape thumbnails. The chosen walk has one primary action (**Start in Google Maps**) and its exports in disclosures. Saved walks, field notes, data notes, privacy and calibration moved into a drawer. The phone page went from about 3,600 px to 2,600 px tall with every control still reachable.
+- **Linking.** Card hover/focus previews its route; map-line hover highlights its card; a map pin highlights its itinerary row and a row highlights (or, via its pin button, pans to) its pin. On phones, "show on map" scrolls the map into view.
+- **Map lag, root cause.** A trace of six walk selections showed **3.6 s of the 5.2 s** of main-thread work was the full-viewport backdrop canvas being re-rasterised and re-uploaded every frame for ~900 ms after each tap, competing with map animation. The backdrop is now a CSS dot pattern with compositor-only hotspot and ripple layers (same look). Main-thread work for the same six selections fell to **1.6 s**.
+- **Map lag, structure.** One Leaflet map for the page's lifetime: the phone Map tab rebuilt it on every visit (three builds in three visits); crossing the breakpoint now keeps the same instance (verified). Zoom animation is back on (with a guard for Leaflet 1.9.4's post-`remove()` zoom callback), selections fly to the route, the line draws itself and pins pop in order. Tiles keep Leaflet's default buffer. The accent colour is cached instead of forcing a style recalculation on every map update. Selecting a walk commits the card first and renders the itinerary and map in a deferred pass.
+- **Measured** with Chromium Event Timing at 4× CPU throttling (median of 6 selections / 3–6 budget changes; same machine, previous build alongside):
+
+  | Interaction | Before | After |
+  |---|---|---|
+  | Select a walk, laptop | 232 ms, 64 long frames | **144 ms, 9 long frames** |
+  | Select a walk, phone (map now live, previously hidden) | 128 ms | 160 ms |
+  | Change budget, laptop | 160 ms, 28 long frames | **144 ms, 10–15 long frames** |
+  | Open the phone map | 112 ms + full map rebuild | **0 ms (always present)** |
+
+  These are emulated measurements, not physical-phone results.
+- **Checks.** `npm run verify`: **1,768 tests pass across 22 files** (new: sentence phrasing, adjusted-option summary, route-thumbnail projection); lint, TypeScript and build pass; zero dependency vulnerabilities. Scripted browser runs covered every editor, keyboard-only use (tab order follows the sentence, arrow keys in radio groups, Escape returns focus), the after-hours blocker and its preview recovery, shared and invalid links, saving with the header badge, drawer open/close, map expand with scroll lock, dark mode and reduced motion. No page overflow at 320×740, 844×390, 1024×768 or 1280×900 with every tray open; no console errors.
+- **Size.** App CSS **9.44 KB** gzip (was 5.02) for the new component styles and motion; main JavaScript **112.85 KB** gzip (was 108.52). No dependencies were added.
 
 ## Final production-build audit — 2 October 2026
 

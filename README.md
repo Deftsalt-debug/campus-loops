@@ -23,13 +23,27 @@ You choose the occasion (a date, friends, a walking meeting, a study break and m
 | **Walk comparison** | Compare total time, walking distance, stops, return buffer, spare time, cost and retracing; select a walk directly from the table. |
 | **Real routes** | Dijkstra (hand-written binary heap) runs over 485 imported path segments, represented by 390 nodes and 970 directed arcs, with walking times adjusted for hills using SRTM elevation (6 s per metre climbed). A pruned search tries every order of up to three shortlisted stops. |
 | **Clear failures** | If nothing fits, it tells you why and gives a number it actually calculated: "needs 36 minutes", "cheapest plan is ₹60", "sunset is at 18:20". It never silently relaxes a limit. |
-| **Google Maps** | **Open in Google Maps** preserves your stops within a three-waypoint limit that also works in mobile browsers; spare slots add route-shaping points (no API key needed). Google chooses its own paths. **KML for Google My Maps** carries the exact line, which then shows up in the Google Maps app under *Saved → Maps*. GPX export works with other apps. **Add to calendar** saves an .ics event with the itinerary and a 10-minute reminder. |
+| **Google Maps** | **Start in Google Maps** preserves your stops within a three-waypoint limit that also works in mobile browsers; spare slots add route-shaping points (no API key needed). Google chooses its own paths. **KML for Google My Maps** carries the exact line, which then shows up in the Google Maps app under *Saved → Maps*. GPX export works with other apps. **Add to calendar** saves an .ics event with the itinerary and a 10-minute reminder. |
 | **Sharing** | The request and route identity live in the link's `#fragment`. Opening a shared link re-checks that route against the current time even if its stops are no longer in the recommendation shortlist. If it no longer fits, the app says so instead of swapping in a different route. A dataset-version mismatch requires a fresh plan. |
 | **Saved plans and backups** | Keep up to 12 plans locally. Export a JSON backup and restore it on another device; validated restores merge without replacing existing walks or changing their dataset versions. Opening a saved walk rechecks its route. |
 | **Campus field notebook** | Record dated observations about prices, hours or access, then export them for manual review. Up to 100 notes stay in this browser. Observations never automatically change planner data. |
 | **Modes for conditions** | *Rain mode* prefers covered paths and schedules sheltered stops unless you explicitly require an unsheltered place, which is flagged. *Avoid steps* excludes paths marked with steps. Stair and cover records in the demo have not been surveyed. |
 | **Calibration log** | After a walk, log walking time excluding stops and the return buffer. The log stays on your device, can be exported as JSON, and summarises how accurate the estimates are. Logging does not automatically change future estimates. |
-| **Interface** | Responsive (phone List/Map tabs, laptop split view), light and dark themes, a **Show entire route** map control, an interactive dot-grid backdrop with a cursor hotspot and click ripples, spotlight hover on cards, and keyboard and reduced-motion support. |
+| **Interface** | A three-step flow: describe the outing as one sentence, choose a walk, head out. One persistent map (beside the panel on laptops, inline and expandable to full screen on phones) is linked both ways with the list and itinerary. Secondary tools live in a slide-in drawer. Light and dark themes, an interactive dot-grid backdrop, and full keyboard and reduced-motion support. See [How the interface works](#how-the-interface-works). |
+
+## How the interface works
+
+User testing found the previous layout cluttered, with no clear order of events, and the map slow to respond to buttons. The interface is now organised around what the app is for: **describe → choose → go**.
+
+1. **Your outing.** One sentence, with every underlined phrase editable: *Out **with friends** from **Tiger Circle** for **60 min**, spending **up to ₹200**.* A phrase opens a small editor in a tray beneath it, which closes when you pick and returns focus to the phrase. A row below holds **Café stop**, **Must-visit** (search, add, set stop time) and **Options** (pace, back-by, buffer, steps, rain, preview). Options shows a count and a one-line summary of anything changed from the occasion's defaults, so no setting is hidden.
+2. **Choose a walk.** Compact cards, each with a miniature of its route's shape. Hovering or focusing a card previews its route on the map; hovering a line on the map highlights its card. **Compare** opens the comparison table in place.
+3. **Head out.** The chosen walk's timeline, then one primary action, **Start in Google Maps**, with Share, Save and Copy beside it. Hovering a stop highlights its pin; the pin button pans the map to it (and, on phones, brings the map into view). Clicking a pin highlights its row. Exports (KML, GPX, calendar) and walk logging are tucked into disclosures.
+
+Saved walks, the field notebook, data provenance, privacy and the calibration log are in a drawer (the bookmark and menu buttons, or **Demo** for data notes). It slides in from the right on laptops and up from the bottom on phones.
+
+**Motion explains change.** Tokens in `src/styles.css` (`--t1`/`--t2`/`--t3`, `--ease-out`, `--ease-spring`) drive every transition. Things that open slide and fade in; chosen things pop; a newly selected route draws itself from start to finish after the camera flies to it, and its pins pop in in order. While new walks are worked out, a thin bar runs along the map and old routes dim, so a press is always acknowledged. Reduced-motion turns all of it off, including map flights.
+
+**Responsiveness.** There is exactly one Leaflet map for the life of the page; crossing the phone/laptop breakpoint never rebuilds it. Selecting a walk commits the card first and renders the itinerary and map in a deferred pass. The dot-grid backdrop is a CSS pattern with compositor-only hotspot and ripple layers; the old full-screen canvas was re-rasterised every frame and was the main source of map jank. On phones, one finger scrolls the page past the inline map (two fingers move it, or expand it to full screen).
 
 ## Quick start
 
@@ -104,7 +118,7 @@ form ─► plan(dataset, request, now) ─► up to 3 plans ─► list + Leafl
 | `src/core/share.ts` | Versioned, validated share links |
 | `src/core/dataset/` | Validation (IDs, geometry, segments, hours, reachability, production rules) |
 | `src/storage/` | Saved walks and validated backups, calibration logs, and local field observations |
-| `src/ui/` | React components: form, plan cards, Leaflet map, backdrop and effects |
+| `src/ui/` | React components: outing builder, walk chooser and detail, map dock and Leaflet map, drawer, backdrop and effects |
 | `scripts/` | OSM importer, validator CLI, GeoJSON export, fixture generator |
 | `data/osm/` | Saved OSM snapshot, checksum and acquisition metadata, elevation cache, and provenance notes, so the demo rebuilds offline |
 | `tests/` | Unit, behaviour, export, demo-data and invariant tests |
