@@ -332,6 +332,12 @@ export default function App() {
               </div>
             )}
 
+            {plans.length === 0 && !blocker && !shared?.note && (
+              <p className="empty-state">
+                {durationError || budgetError || previewError ? 'Fix the highlighted choice above to see walks.' : 'Finding walks…'}
+              </p>
+            )}
+
             {plans.length >= 2 && (
               <div id="compare" className={`reveal${compareOpen ? ' is-open' : ''}`} inert={!compareOpen}>
                 <div className="reveal-clip"><PlanComparison plans={plans} selectedId={chosen?.id ?? null} onSelect={onSelect} /></div>

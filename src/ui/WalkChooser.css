@@ -44,6 +44,7 @@
 }
 .walk[aria-pressed='true'] .walk-num { background: var(--accent); color: var(--accent-ink); }
 .walk-fit { color: var(--accent); font-size: 0.8rem; font-weight: 600; }
+.walk-fit:empty { display: none; }
 .walk-stats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; color: var(--muted); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
 .walk-stats > span { padding: 1px 8px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; transition: background var(--t2) var(--ease-out); }
 .walk[aria-pressed='true'] .walk-stats > span { background: var(--accent-soft); color: var(--fg); }

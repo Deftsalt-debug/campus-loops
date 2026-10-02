@@ -1,4 +1,4 @@
-import { memo, useMemo, type CSSProperties } from 'react'
+import { memo, useId, useMemo, type CSSProperties } from 'react'
 import { planGeometry } from '../core/geo'
 import type { Dataset, Plan } from '../core/types'
 import { spotlight } from './effects'
@@ -19,6 +19,7 @@ interface Props {
 
 /** Step 2. Compact, comparable choices; each card carries its route's shape. */
 export const WalkChooser = memo(function WalkChooser({ dataset, plans, selectedId, linkedId, onSelect, onHover }: Props) {
+  const base = useId()
   const thumbs = useMemo(() => new Map(plans.map((plan) => {
     try { return [plan.id, routeThumbnail(planGeometry(dataset, plan).path)] as const }
     catch { return [plan.id, null] as const }
@@ -36,6 +37,8 @@ export const WalkChooser = memo(function WalkChooser({ dataset, plans, selectedI
               type="button"
               className={`walk card spot${plan.id === linkedId && !selected ? ' is-linked' : ''}`}
               aria-pressed={selected}
+              aria-labelledby={`${base}-${i}-name`}
+              aria-describedby={`${base}-${i}-fit ${base}-${i}-stats`}
               onPointerMove={spotlight}
               onPointerEnter={() => onHover(selected ? null : plan.id)}
               onPointerLeave={() => onHover(null)}
@@ -48,9 +51,9 @@ export const WalkChooser = memo(function WalkChooser({ dataset, plans, selectedI
                 {thumb?.start && <circle cx={thumb.start[0]} cy={thumb.start[1]} r="3" />}
               </svg>
               <span className="walk-body">
-                <span className="walk-name"><span className="walk-num" aria-hidden="true">{i + 1}</span>{plan.name}</span>
-                {plan.fit && <span className="walk-fit">{plan.fit}</span>}
-                <span className="walk-stats">
+                <span className="walk-name" id={`${base}-${i}-name`}><span className="walk-num"><span className="sr-only">Walk </span>{i + 1}<span className="sr-only">: </span></span>{plan.name}</span>
+                <span className="walk-fit" id={`${base}-${i}-fit`}>{plan.fit}</span>
+                <span className="walk-stats" id={`${base}-${i}-stats`}>
                   <span>{mins(plan.totalSec)}</span>
                   <span>{km(plan.distanceM)} walk</span>
                   <span>{rupees(plan.spendLowInr, plan.spendHighInr)}</span>

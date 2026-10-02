@@ -31,8 +31,11 @@ export function download(filename: string, mime: string, content: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+/** File-name stem: "Walk with a café stop · MIT" -> "walk-with-a-cafe-stop-mit". Accents fold rather than vanish. */
 export const slug = (s: string) =>
   s
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')

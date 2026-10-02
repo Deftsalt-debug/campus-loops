@@ -26,6 +26,8 @@ export function MapDock({ wide, pending, title, subtitle, ...map }: Props) {
   const [hint, setHint] = useState(false)
   const [refitKey, setRefitKey] = useState(0)
   const busy = useDelayedFlag(pending, 140)
+  // Rotating or resizing into the side-by-side layout ends full screen.
+  if (wide && expanded) setExpanded(false)
   const full = expanded && !wide
   const touchPan = wide || full
 
@@ -33,12 +35,20 @@ export function MapDock({ wide, pending, title, subtitle, ...map }: Props) {
   useEffect(() => {
     if (!full) return
     const root = document.documentElement
+    const dock = ref.current
     const previous = root.style.overflow
     root.style.overflow = 'hidden'
-    ref.current?.querySelector<HTMLElement>('.map-expand')?.focus({ preventScroll: true })
+    // Behave as a modal: everything the full-screen map covers leaves the tab order and accessibility tree.
+    const covered = [...(dock?.parentElement?.children ?? [])].filter((el): el is HTMLElement => el !== dock && el instanceof HTMLElement && !el.inert)
+    covered.forEach((el) => { el.inert = true })
+    dock?.querySelector<HTMLElement>('.map-expand')?.focus({ preventScroll: true })
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setExpanded(false); setRefitKey((k) => k + 1) } }
     window.addEventListener('keydown', onKey)
-    return () => { root.style.overflow = previous; window.removeEventListener('keydown', onKey) }
+    return () => {
+      root.style.overflow = previous
+      covered.forEach((el) => { el.inert = false })
+      window.removeEventListener('keydown', onKey)
+    }
   }, [full])
 
   // Inline on a phone, one finger scrolls the page. Explain that once it is tried.
@@ -65,7 +75,7 @@ export function MapDock({ wide, pending, title, subtitle, ...map }: Props) {
   }, [touchPan])
 
   return (
-    <section ref={ref} className={`map-dock${full ? ' is-expanded' : ''}${busy ? ' is-busy' : ''}`} aria-label="Map" aria-busy={pending}>
+    <section ref={ref} className={`map-dock${full ? ' is-expanded' : ''}${busy ? ' is-busy' : ''}`} aria-label={full ? 'Map, full screen' : 'Map'} aria-busy={pending}>
       <div className="map-progress" aria-hidden="true" />
       <div className="map-label">
         <span className="eyebrow">{subtitle}</span>

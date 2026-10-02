@@ -80,6 +80,9 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
   const start = dataset.starts.find((s) => s.id === state.startId)
   const mustCount = state.required.filter(Boolean).length
   const adjusted = adjustedOptions(state)
+  const errorId = `${trayId}-error`
+  const sentenceError = (open !== 'duration' ? durationError : null) ?? (open !== 'budget' ? budgetError : null)
+    ?? (open !== 'options' && previewError ? `Preview time: ${previewError}` : null)
   const token = (editor: Editor, label: string, value: string, invalid = false) => (
     <button
       ref={(el) => { tokens.current[editor] = el }}
@@ -87,7 +90,8 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
       className="token"
       aria-expanded={open === editor}
       aria-controls={trayId}
-      aria-invalid={invalid || undefined}
+      aria-describedby={invalid ? errorId : undefined}
+      data-invalid={invalid || undefined}
       onClick={() => toggle(editor)}
     >
       <span className="sr-only">{label}: </span>
@@ -96,17 +100,15 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
   )
 
   return (
-    <form className="builder" onSubmit={(e) => e.preventDefault()} onKeyDown={onKeyDown} aria-labelledby="builder-title">
-      <h2 className="sr-only" id="builder-title">Describe your outing</h2>
+    <form className="builder" onSubmit={(e) => e.preventDefault()} onKeyDown={onKeyDown} aria-label="Describe your outing">
       <p className="sentence">
         Out {token('occasion', 'Occasion', OCCASION_PHRASE[state.occasion])}{' '}
-        from {token('start', 'Start and finish', start?.name ?? 'somewhere')}{' '}
+        from {token('start', 'Start and finish at', start?.name ?? 'somewhere')}{' '}
         for {token('duration', 'Time you have', durationPhrase(state.durationMin), Boolean(durationError))},{' '}
         spending {token('budget', 'Budget per person', budgetPhrase(state.budgetInr), Boolean(budgetError))}.
       </p>
-      {(durationError || budgetError) && open !== 'duration' && open !== 'budget' && (
-        <p className="error" role="alert">{durationError ?? budgetError}</p>
-      )}
+      {/* Errors stay visible with the tray closed; the editor shows its own while open. */}
+      {sentenceError && <p className="error" id={errorId} role="alert">{sentenceError}</p>}
 
       <div className="tune-row" role="group" aria-label="Fine-tune">
         <button type="button" className="chip tune" aria-pressed={state.requireCafe} onPointerDown={ripple} onClick={() => onChange({ requireCafe: !state.requireCafe })}>

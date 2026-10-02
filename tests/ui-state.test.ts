@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromIstInput, istInputValue } from '../src/ui/format'
+import { fromIstInput, istInputValue, slug } from '../src/ui/format'
 import { initialForm, sharedForm, toRequest } from '../src/ui/planningState'
 import { findCampusPlaces, stopTimeError, toggleRequiredPlace, unconfirmedPlaceDetails, updateStopTime } from '../src/ui/campusPlaces'
 import { plan, rebuildPlan } from '../src/core/planner/plan'
@@ -154,5 +154,17 @@ describe('custom stop times', () => {
     expect(Object.getPrototypeOf(overrides)).toBe(Object.prototype)
     expect(overrides.__proto__).toBe(7.5)
     expect(updateStopTime(overrides, '__proto__', null)).toBeUndefined()
+  })
+})
+
+describe('download file names', () => {
+  it('folds accents instead of dropping letters', () => {
+    expect(slug('Walk with a café stop · MIT Cafeteria')).toBe('walk-with-a-cafe-stop-mit-cafeteria')
+    expect(slug('Crème brûlée & naïve façade')).toBe('creme-brulee-naive-facade')
+  })
+  it('trims separators, caps the length, and never returns an empty name', () => {
+    expect(slug('  --Library (outside)--  ')).toBe('library-outside')
+    expect(slug('x'.repeat(80))).toHaveLength(48)
+    expect(slug('₹ · —')).toBe('route')
   })
 })

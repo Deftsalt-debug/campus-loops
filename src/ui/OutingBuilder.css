@@ -32,7 +32,7 @@
 .token:hover { background: var(--accent-soft); text-decoration-style: solid; }
 .token:active .token-value { transform: translateY(1px); }
 .token[aria-expanded='true'] { background: var(--accent); color: var(--accent-ink); text-decoration-color: transparent; }
-.token[aria-invalid='true'] { color: var(--danger-fg); text-decoration-color: var(--danger-fg); }
+.token[data-invalid] { color: var(--danger-fg); text-decoration-color: var(--danger-fg); }
 .token-value { display: inline-block; max-width: 100%; animation: token-swap var(--t3) var(--ease-out); transition: transform var(--t1) var(--ease-out); }
 @keyframes token-swap { from { opacity: 0; transform: translateY(0.35em); filter: blur(3px); } }
 

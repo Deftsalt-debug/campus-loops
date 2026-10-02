@@ -189,7 +189,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
         fadeAnimation: !reducedMotion,
         markerZoomAnimation: !reducedMotion,
         inertia: !reducedMotion,
-        zoomSnap: 0.25,
+        // Integer zoom keeps raster tiles crisp; fractional zoom scales (blurs) them.
         wheelPxPerZoomLevel: 90,
         // SVG paths remain selectable; Leaflet handles their projection on zoom.
         preferCanvas: false,
