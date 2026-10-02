@@ -7,8 +7,7 @@ interface Props { plans: Plan[]; selectedId: string | null; onSelect: (id: strin
 export function PlanComparison({ plans, selectedId, onSelect }: Props) {
   if (plans.length < 2) return null
   return (
-    <details className="more plan-comparison">
-      <summary>Compare these walks</summary>
+    <div className="plan-comparison">
       <p className="hint">Total time includes stops and your return buffer. Spare time is what remains before your deadline, after that buffer. Costs are estimates per person.</p>
       <div className="comparison-scroll" role="region" aria-label="Walk comparison" tabIndex={0}>
         <table>
@@ -29,6 +28,6 @@ export function PlanComparison({ plans, selectedId, onSelect }: Props) {
           </tbody>
         </table>
       </div>
-    </details>
+    </div>
   )
 }

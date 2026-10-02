@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 import { exportSavedPlans, importSavedPlans, MAX_BACKUP_BYTES, MAX_SAVED_PLANS, readSavedPlans, repairSavedPlans, SAVED_PLANS_KEY, type SavedPlan } from '../storage/savedPlans'
 import { download } from './format'
+import { Icon } from './icons'
 import './SavedWalks.css'
 
 interface SavedWalksProps {
@@ -65,8 +66,7 @@ export function SavedWalks({ savedPlans, onOpen, onRemove, onImported, notify }:
   }
 
   return (
-    <details className="more saved-walks card">
-      <summary>Saved walks <span className="count">{savedPlans.length}</span></summary>
+    <div className="saved-walks">
       <p className="hint">Only on this device. Opening a saved walk checks it again. Preview walks keep their chosen date.</p>
       {storageStatus === 'corrupt' && <div className="notice" role="status">
         <p>Some saved data could not be read. Saving, removing and restoring are paused to protect it. Export readable walks first. Repair keeps readable walks and discards unreadable entries.</p>
@@ -83,7 +83,7 @@ export function SavedWalks({ savedPlans, onOpen, onRemove, onImported, notify }:
         <ul>
           {savedPlans.map((plan) => (
             <li key={plan.hash}>
-              <button type="button" className="saved-open" onClick={() => onOpen(plan.hash)}>{plan.name}</button>
+              <button type="button" className="saved-open" onClick={() => onOpen(plan.hash)}><Icon name="bookmark" size={16} />{plan.name}</button>
               <button type="button" className="btn ghost" aria-label={`Remove saved walk: ${plan.name}`} disabled={storageStatus !== 'ready'} onClick={() => onRemove(plan.hash)}>Remove</button>
             </li>
           ))}
@@ -98,6 +98,6 @@ export function SavedWalks({ savedPlans, onOpen, onRemove, onImported, notify }:
         <p className="hint" id={helpId}>A Campus Loops JSON backup up to 64 KB. Restoring adds walks without replacing existing ones, up to {MAX_SAVED_PLANS} total. Backups include route names, dates and preferences; keep them private.</p>
         <p className="saved-backup-status" role="status" aria-atomic="true">{status}</p>
       </div>
-    </details>
+    </div>
   )
 }

@@ -8,3 +8,16 @@
 .saved-backup-status { margin: 0; font-size: 0.85rem; color: var(--fg); overflow-wrap: anywhere; }
 .saved-backup-status:empty { display: none; }
 .saved-walks .saved-open { min-width: 0; overflow-wrap: anywhere; }
+.saved-walks { display: grid; gap: 8px; }
+.saved-walks ul { margin: 6px 0 0; padding: 0; list-style: none; }
+.saved-walks li { display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding: 6px 0; animation: rise var(--t2) var(--ease-out) backwards; }
+.saved-open {
+  flex: 1; display: flex; align-items: center; gap: 10px; text-align: left;
+  min-height: 46px; padding: 4px 8px; margin-left: -8px; border: 0; border-radius: 10px;
+  background: none; color: var(--fg); cursor: pointer; font-weight: 600; font-size: 0.9rem;
+  transition: background var(--fast), color var(--fast);
+}
+.saved-open svg { flex: none; color: var(--accent); transition: transform var(--t2) var(--ease-spring); }
+.saved-open:hover { background: var(--accent-soft); color: var(--accent); }
+.saved-open:hover svg { transform: translateY(-2px); }
+.saved-walks .btn { font-size: 0.8rem; padding: 0 10px; min-height: 38px; }
