@@ -22,18 +22,24 @@ export function planGeometry(dataset: Dataset, plan: Plan): RouteGeometry {
   const edges = new Map<string, Edge>(dataset.edges.map((e) => [e.id, e]));
   const nodes = new Map(dataset.nodes.map((n) => [n.id, n]));
   const places = new Map(dataset.places.map((p) => [p.id, p]));
-  const startNode = nodes.get(plan.startNodeId)!;
+  const startNode = nodes.get(plan.startNodeId);
+  if (!startNode) throw new Error(`Plan uses unknown start ${plan.startNodeId}`);
   const start: LatLng = [startNode.lat, startNode.lng];
 
   const path: LatLng[] = [start];
   // nodeIndex[k] = index in `path` where the walk has completed k edges.
   const nodeAt: { nodeId: string; pathIndex: number }[] = [{ nodeId: plan.startNodeId, pathIndex: 0 }];
+  let at = plan.startNodeId;
   for (const id of plan.edgeIds) {
     const edge = edges.get(id);
     if (!edge) throw new Error(`Plan uses unknown edge ${id}`);
+    if (edge.from !== at) throw new Error(`Plan edges are not continuous at ${id}`);
+    at = edge.to;
     path.push(...edge.geometry.slice(1));
     nodeAt.push({ nodeId: edge.to, pathIndex: path.length - 1 });
   }
+
+  if (at !== plan.startNodeId) throw new Error('Plan does not return to its start');
 
   // Use the scheduled arrival edge so a curated route can pass a node before
   // stopping there. Older plans without this field fall back to walk order.

@@ -23,6 +23,9 @@ const ORDER: DrawerTab[] = ['saved', 'notes', 'about']
 export function Drawer({ tab, panels, onTab, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const [closing, setClosing] = useState(false)
+  // External actions can close the sheet during its exit animation. Clear
+  // that animation state before the same tab is opened again.
+  if (!tab && closing) setClosing(false)
 
   useEffect(() => {
     const dialog = ref.current

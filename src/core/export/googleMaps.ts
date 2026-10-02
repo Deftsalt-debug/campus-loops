@@ -30,11 +30,15 @@ export interface GoogleMapsLink {
  * from the checked route; the KML export carries the exact path.
  */
 export function googleMapsDirectionsUrl(route: RouteGeometry, maxWaypoints = MAX_WAYPOINTS): GoogleMapsLink {
+  if (!Number.isInteger(maxWaypoints) || maxWaypoints < 0 || maxWaypoints > 9) {
+    throw new RangeError('Google Maps supports an integer limit of 0–9 waypoints');
+  }
+  if (route.stops.length > maxWaypoints) throw new RangeError('The waypoint limit cannot include every visit');
   const dist = cumulativeDistances(route.path);
   const total = dist[dist.length - 1] ?? 0;
 
   type Point = { at: LatLng; d: number };
-  const stops: Point[] = route.stops.slice(0, maxWaypoints).map((s) => ({ at: s.at, d: dist[s.pathIndex] ?? 0 }));
+  const stops: Point[] = route.stops.map((s) => ({ at: s.at, d: dist[s.pathIndex] ?? 0 }));
   const shaping: Point[] = [];
   const slots = maxWaypoints - stops.length;
   const tooClose = (p: LatLng) =>

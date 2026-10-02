@@ -21,6 +21,24 @@ describe('OSM pedestrian import rules', () => {
     expect(isPedestrianAllowed({ foot: 'yes', 'foot:conditional': 'no @ (sunset-sunrise)' })).toBe(false);
   });
 
+  it('excludes locked barriers even where legal pedestrian access is granted', () => {
+    expect(isPedestrianAllowed({ barrier: 'gate', foot: 'yes', locked: 'yes' })).toBe(false);
+    expect(isPedestrianAllowed({ barrier: 'gate', foot: 'yes', locked: 'no' })).toBe(true);
+    expect(pedestrianDirections({ highway: 'path', locked: 'yes' })).toEqual({ forward: false, reverse: false });
+  });
+
+  it('does not guess conditional lock availability', () => {
+    const tags = { barrier: 'gate', foot: 'yes', locked: 'no', 'locked:conditional': 'yes @ (sunset-sunrise)' };
+    expect(isPedestrianAllowed(tags)).toBe(false);
+    expect(pedestrianDirections(tags)).toEqual({ forward: false, reverse: false });
+  });
+
+  it.each(['alternating', 'reversible', 'unknown', ''])('does not treat unsupported pedestrian one-way %s as two-way', (oneway) => {
+    expect(pedestrianDirections({ 'oneway:foot': oneway })).toEqual({ forward: false, reverse: false });
+    expect(pedestrianDirections({ highway: 'path', oneway })).toEqual({ forward: false, reverse: false });
+    expect(pedestrianDirections({ highway: 'residential', oneway })).toEqual({ forward: true, reverse: true });
+  });
+
   it('keeps vehicle one-way roads walkable in both directions', () => {
     expect(pedestrianDirections({ highway: 'residential', oneway: 'yes' })).toEqual({ forward: true, reverse: true });
   });

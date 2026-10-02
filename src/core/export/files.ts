@@ -6,8 +6,14 @@ import type { Plan } from '../types';
 // then shows the exact route inside the Google Maps app under Saved > Maps.
 // GPX works with most other map and fitness apps.
 
+const xmlText = (s: string) => [...s].map((ch) => {
+  const cp = ch.codePointAt(0)!;
+  // XML 1.0 permits tabs, newlines, CR and these Unicode ranges.
+  return cp === 9 || cp === 10 || cp === 13 || (cp >= 0x20 && cp <= 0xd7ff) ||
+    (cp >= 0xe000 && cp <= 0xfffd) || (cp >= 0x10000 && cp <= 0x10ffff) ? ch : '\uFFFD';
+}).join('');
 const escapeXml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  xmlText(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
 const minutes = (sec: number) => Math.round(sec / 60);
 
@@ -90,7 +96,14 @@ export function planToText(plan: Plan, startName: string, startSec: number): str
 
 /** RFC 5545 TEXT escaping: backslash, semicolon, comma and newlines. */
 function escapeIcsText(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  // RFC 5545 excludes ASCII controls except HTAB. Keep line breaks only long
+  // enough to escape them, and replace unpaired surrogates before UTF-8 encoding.
+  const text = [...s].map((ch) => {
+    const cp = ch.codePointAt(0)!;
+    return cp === 9 || cp === 10 || cp === 13 ||
+      (cp >= 0x20 && cp !== 0x7f && (cp < 0xd800 || cp > 0xdfff)) ? ch : '\uFFFD';
+  }).join('');
+  return text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
 }
 
 /** Fold content lines at 75 octets (UTF-8), never splitting a character. */
@@ -153,9 +166,21 @@ function icsRouteIdentity(plan: Plan, opts: IcsOptions): string {
  * 10 minutes before. Times are UTC, so every calendar app shows local time correctly.
  */
 export function planToIcs(plan: Plan, opts: IcsOptions): string {
+  // URI values are not TEXT fields: validate and serialize instead of escaping them.
+  let url: string | undefined;
+  if (opts.url !== undefined) {
+    if (/[\r\n]/.test(opts.url)) throw new RangeError('Calendar URL must be a single-line web URL');
+    try {
+      const parsed = new URL(opts.url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported protocol');
+      url = parsed.href;
+    } catch {
+      throw new RangeError('Calendar URL must be an absolute HTTP or HTTPS URL');
+    }
+  }
   const startSec = (((opts.startAt.getTime() / 1000 + 330 * 60) % 86_400) + 86_400) % 86_400;
   const end = new Date(opts.startAt.getTime() + plan.totalSec * 1000);
-  const description = planToText(plan, opts.startName, startSec) + (opts.url ? `\n${opts.url}\n` : '');
+  const description = planToText(plan, opts.startName, startSec) + (url ? `\n${url}\n` : '');
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -171,7 +196,7 @@ export function planToIcs(plan: Plan, opts: IcsOptions): string {
     `LOCATION:${escapeIcsText(`${opts.startName}, MIT Manipal`)}`,
     `GEO:${opts.startCoords[0].toFixed(6)};${opts.startCoords[1].toFixed(6)}`,
     `DESCRIPTION:${escapeIcsText(description.trim())}`,
-    ...(opts.url ? [`URL:${opts.url}`] : []),
+    ...(url ? [`URL:${url}`] : []),
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
     'TRIGGER:-PT10M',

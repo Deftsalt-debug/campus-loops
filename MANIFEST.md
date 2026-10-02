@@ -25,7 +25,7 @@ This is the project guide: what was built, how to run it, how it works, what to 
 | Campus field notebook | ✅ Local observations and export for manual review; no automatic routing changes |
 | Community routes | ⏳ Not started (roadmap) |
 
-**Bottom line:** the software is complete for a pilot. The *data* is a demo: real streets and real place names from OpenStreetMap, but prices and some opening hours are placeholders, and nothing has been walked yet.
+The software is verified for a public demo. The *data* remains a demo: real streets and real place names from OpenStreetMap, but prices and some opening hours are placeholders, and nothing has been walked yet.
 
 ---
 
@@ -33,12 +33,12 @@ This is the project guide: what was built, how to run it, how it works, what to 
 
 ```bash
 cd ~/Desktop/Projects/LoopCampus
-npm install          # first time only
+npm ci               # exact committed lockfile; use Node.js 24
 npm run dev          # opens on http://localhost:5173
 npm run verify       # lint + typecheck + all tests + production build (run before every push)
 ```
 
-At night the planner refuses to plan, because it's daylight-only and checks sunset. Click **Preview tomorrow 10:00** in the notice, or set *More options → Plan as if it's…*.
+At night the planner refuses to plan, because it's daylight-only and checks sunset. Click **Preview tomorrow 10:00** in the notice, or set *Options → Plan as if it's…*.
 
 Other commands:
 
@@ -69,12 +69,12 @@ Other commands:
    | Active walk | ranks by **time spent walking** | – | 45 min · free · normal | **2** |
 
    Modes are defined in `src/core/planner/occasions.ts`. Add or tweak one there; each needs a label, a blurb, up to two rules, avoided tags and defaults.
-2. **Start and finish at** one of 4 public landmarks: Tiger Circle, MIT Central Library, Student Plaza or KMC Greens.
-3. **Time** (30–90 min), **budget per person**, up to **two must-visit places**, and **Include a café**.
-4. **More options:** pace (relaxed 1.0 m/s, normal 1.2 m/s), **Back by** (e.g. a hostel in-time), **Avoid steps**, **Rain mode**, **Plan as if it's…** (preview another time).
-5. **Results** update live: up to 3 different plans. Hover a card to preview its route on the map, and click to select it. The selected card shows a timeline with clock times, warnings (placeholder prices or hours, steps, old data), and actions.
+2. **Start and finish at** one of six campus anchors: Tiger Circle, MIT Central Library, Student Plaza, KMC Greens, MIT Food Court 1 or MIT Food Court 2. Entrances have not been surveyed.
+3. **Time** (30–90 min), **budget per person**, up to **two must-visit places**, and **Café stop**.
+4. **Options:** pace (relaxed 1.0 m/s, normal 1.2 m/s), **Back by** (e.g. a hostel in-time), **Avoid steps**, **Rain mode**, **Plan as if it's…** (preview another time).
+5. **Results** update live: up to 3 different plans. Hover a card to preview its route on the map, and click to select it. The **Head out** section shows a timeline with clock times, warnings (placeholder prices or hours, steps, old data), and actions.
 6. **Actions:** Start in Google Maps · Share (system share sheet or copy link) · Copy text · KML for Google My Maps · GPX · **Add to calendar** (.ics with the itinerary and a 10-minute reminder) · *Walked it? Log the real time*.
-7. On a phone, use the **List / Map** switch above the results.
+7. On a phone, the persistent map sits between the outing and walk choices; expand it to full screen when needed. Its keyboard focus stays inside the expanded view, and Escape returns to the inline map. On laptops the same map sits beside the panel.
 
 ---
 
@@ -152,7 +152,7 @@ src/storage/         calibrationLog.ts, savedPlans.ts, fieldNotes.ts (localStora
 src/data/            manipal-demo.json, fixtures/pilot-fixture.json
 scripts/             import-osm.ts, osm-rules.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
 data/osm/            raw OSM snapshot, provenance + elevation cache (ODbL)
-tests/               22 files; see RELEASE.md for the latest QA checkpoint
+tests/               24 files; see RELEASE.md for the latest QA checkpoint
 .github/workflows/   deploy.yml (verify → build → GitHub Pages)
 ROADMAP.md           product plan, decisions, weekly checklists
 ```

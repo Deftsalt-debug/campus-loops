@@ -5,6 +5,7 @@ import { isIsoInstant } from '../core/time/clock';
 // devices and disappear if site data is cleared.
 
 const KEY = 'campusloops.calibration.v1';
+const MAX_LOG_STORAGE_LENGTH = 1_000_000;
 
 /** The subset of the Web Storage API we use, so tests can pass a fake. */
 export interface KeyValueStore {
@@ -60,13 +61,14 @@ function cleanLog(log: WalkLog): WalkLog {
 }
 
 export type LogStorageStatus = 'ready' | 'corrupt' | 'unavailable';
+export interface LogStorageSnapshot { logs: WalkLog[]; status: LogStorageStatus }
 
-function readLogSnapshot(store: KeyValueStore | null): { logs: WalkLog[]; status: LogStorageStatus } {
+function readLogSnapshot(store: KeyValueStore | null): LogStorageSnapshot {
   if (!store) return { logs: [], status: 'unavailable' };
   let raw: string | null;
   try { raw = store.getItem(KEY); } catch { return { logs: [], status: 'unavailable' }; }
   // Bound work on arbitrary storage contents without modifying oversized data.
-  if (raw !== null && raw.length > 1_000_000) return { logs: [], status: 'corrupt' };
+  if (raw !== null && raw.length > MAX_LOG_STORAGE_LENGTH) return { logs: [], status: 'corrupt' };
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw ?? '[]');
@@ -86,6 +88,11 @@ function readLogSnapshot(store: KeyValueStore | null): { logs: WalkLog[]; status
   return { logs: [...logs.values()], status: damaged ? 'corrupt' : 'ready' };
 }
 
+/** One checked read, so exports use the same readable records as their status check. */
+export function readLogs(store: KeyValueStore | null = defaultStore()): LogStorageSnapshot {
+  return readLogSnapshot(store);
+}
+
 /** Keep damaged data distinct from blocked storage so recovery advice cannot erase valid logs. */
 export function getLogStorageStatus(store: KeyValueStore | null = defaultStore()): LogStorageStatus {
   return readLogSnapshot(store).status;
@@ -103,7 +110,11 @@ export function saveLog(log: WalkLog, store: KeyValueStore | null = defaultStore
   if (snapshot.status !== 'ready') return false;
   try {
     const logs = snapshot.logs.filter((l) => l.id !== log.id);
-    store.setItem(KEY, JSON.stringify([...logs, cleanLog(log)]));
+    const raw = JSON.stringify([...logs, cleanLog(log)]);
+    // A successful append must remain readable on the next load. Keep every
+    // existing record unchanged when the log reaches the defensive read limit.
+    if (raw.length > MAX_LOG_STORAGE_LENGTH) return false;
+    store.setItem(KEY, raw);
     return true;
   } catch {
     return false;

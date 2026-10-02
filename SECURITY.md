@@ -10,6 +10,6 @@ If private reporting is unavailable, open a public issue asking the maintainer f
 
 ## Maintenance
 
-Dependency updates are proposed by Dependabot. Pull requests and main releases run lint, typechecking, tests, a production build, dataset checks, and `npm audit --audit-level=high`. An audit cannot establish that an application is free of vulnerabilities; dependency changes and browser-facing code still need review.
+Dependency updates are proposed by Dependabot. Pull requests and main releases run lint, typechecking, tests, a production build, dataset checks, and `npm audit --audit-level=moderate`. An audit cannot establish that an application is free of vulnerabilities; dependency changes and browser-facing code still need review.
 
-Only the deployment job receives Pages and OIDC write permissions. Pull-request code runs with a read-only repository token and does not deploy. Maintainers should enable private vulnerability reporting, dependency alerts, branch protection, and a required verification check in repository settings.
+GitHub Actions are pinned to verified immutable commits; Dependabot proposes updates to those pins. Only the deployment job receives Pages and OIDC write permissions. Pull-request code runs with a read-only repository token and does not deploy. Maintainers should enable private vulnerability reporting, dependency alerts, branch protection, and a required verification check in repository settings.

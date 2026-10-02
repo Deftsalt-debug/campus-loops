@@ -26,12 +26,14 @@ export function edgeAscent(edge: Edge, nodes: Map<string, GraphNode>): number {
 
 /** Estimated walking time for one arc. This is the time shown to users. */
 export function trueSeconds(edge: Edge, ascentM: number, model: CostModel): number {
-  if (!(model.paceMps > 0)) throw new RangeError('paceMps must be positive');
+  if (!Number.isFinite(model.paceMps) || model.paceMps <= 0) throw new RangeError('paceMps must be finite and positive');
   const parts = [edge.meters, edge.delaySeconds, ascentM, model.climbSecPerM];
   if (parts.some((v) => !Number.isFinite(v) || v < 0)) {
     throw new RangeError(`Edge ${edge.id} has a negative or non-finite cost component`);
   }
-  return edge.meters / model.paceMps + ascentM * model.climbSecPerM + edge.delaySeconds;
+  const seconds = edge.meters / model.paceMps + ascentM * model.climbSecPerM + edge.delaySeconds;
+  if (!Number.isFinite(seconds)) throw new RangeError(`Edge ${edge.id} walking time overflowed`);
+  return seconds;
 }
 
 /**
@@ -41,5 +43,10 @@ export function trueSeconds(edge: Edge, ascentM: number, model: CostModel): numb
  */
 export function routingWeight(edge: Edge, ascentM: number, model: CostModel): number {
   const seconds = trueSeconds(edge, ascentM, model);
-  return model.rain && !edge.covered ? seconds * model.rainUncoveredMultiplier : seconds;
+  if (!Number.isFinite(model.rainUncoveredMultiplier) || model.rainUncoveredMultiplier < 1) {
+    throw new RangeError('rainUncoveredMultiplier must be finite and at least 1');
+  }
+  const weight = model.rain && !edge.covered ? seconds * model.rainUncoveredMultiplier : seconds;
+  if (!Number.isFinite(weight)) throw new RangeError(`Edge ${edge.id} routing weight overflowed`);
+  return weight;
 }

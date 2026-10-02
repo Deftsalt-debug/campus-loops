@@ -80,9 +80,11 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
   const start = dataset.starts.find((s) => s.id === state.startId)
   const mustCount = state.required.filter(Boolean).length
   const adjusted = adjustedOptions(state)
-  const errorId = `${trayId}-error`
-  const sentenceError = (open !== 'duration' ? durationError : null) ?? (open !== 'budget' ? budgetError : null)
-    ?? (open !== 'options' && previewError ? `Preview time: ${previewError}` : null)
+  const sentenceErrors: Partial<Record<Editor, string | null>> = {
+    duration: durationError,
+    budget: budgetError,
+    options: previewError ? `Preview time: ${previewError}` : null,
+  }
   const token = (editor: Editor, label: string, value: string, invalid = false) => (
     <button
       ref={(el) => { tokens.current[editor] = el }}
@@ -90,7 +92,7 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
       className="token"
       aria-expanded={open === editor}
       aria-controls={trayId}
-      aria-describedby={invalid ? errorId : undefined}
+      aria-describedby={invalid ? (open === editor ? `${editor}-error` : `${trayId}-${editor}-error`) : undefined}
       data-invalid={invalid || undefined}
       onClick={() => toggle(editor)}
     >
@@ -108,7 +110,9 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
         spending {token('budget', 'Budget per person', budgetPhrase(state.budgetInr), Boolean(budgetError))}.
       </p>
       {/* Errors stay visible with the tray closed; the editor shows its own while open. */}
-      {sentenceError && <p className="error" id={errorId} role="alert">{sentenceError}</p>}
+      {Object.entries(sentenceErrors).map(([editor, error]) => error && open !== editor
+        ? <p key={editor} className="error" id={`${trayId}-${editor}-error`} role="alert">{error}</p>
+        : null)}
 
       <div className="tune-row" role="group" aria-label="Fine-tune">
         <button type="button" className="chip tune" aria-pressed={state.requireCafe} onPointerDown={ripple} onClick={() => onChange({ requireCafe: !state.requireCafe })}>
@@ -117,7 +121,8 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
         <button ref={(el) => { tokens.current.stops = el }} type="button" className="chip tune" aria-expanded={open === 'stops'} aria-controls={trayId} onPointerDown={ripple} onClick={() => toggle('stops')}>
           <Icon name="pin" size={16} />{mustCount ? `${mustCount} must-visit${mustCount > 1 ? 's' : ''}` : 'Must-visit'}
         </button>
-        <button ref={(el) => { tokens.current.options = el }} type="button" className="chip tune" aria-expanded={open === 'options'} aria-controls={trayId} onPointerDown={ripple} onClick={() => toggle('options')}>
+        <button ref={(el) => { tokens.current.options = el }} type="button" className="chip tune" aria-expanded={open === 'options'} aria-controls={trayId}
+          aria-describedby={previewError ? (open === 'options' ? 'preview-error' : `${trayId}-options-error`) : undefined} onPointerDown={ripple} onClick={() => toggle('options')}>
           <Icon name="sliders" size={16} />Options
           {adjusted.length > 0 && <span className="tune-badge" aria-label={`${adjusted.length} changed`}>{adjusted.length}</span>}
         </button>
@@ -240,7 +245,7 @@ function NumberChoice({ id, label, unit, choices, value, min, max, step, format,
           {unit !== '₹' && <span aria-hidden="true">{unit}</span>}
         </label>
       </div>
-      {error && <p className="error" id={`${id}-error`}>{error}</p>}
+      {error && <p className="error" id={`${id}-error`} role="alert">{error}</p>}
       <p className="hint" id={`${id}-hint`}>{hint}</p>
     </div>
   )

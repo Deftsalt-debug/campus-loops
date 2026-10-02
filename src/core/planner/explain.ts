@@ -119,7 +119,7 @@ export function occasionFit(it: Itinerary, occasion: Occasion): string {
 /** One useful sentence about why this plan fits. */
 export function planExplanation(it: Itinerary, m: PathMetrics, availableSec: number, rain: boolean): string {
   const parts: string[] = [];
-  const cafes = it.visits.filter((v) => v.place.category === 'cafe');
+  const cafes = it.visits.filter((v) => v.place.category === 'cafe' && v.dwellSec > 0);
   if (cafes.length) parts.push(`a café (about ${rupees(it.spendLowInr, it.spendHighInr)} per person)`);
   if (it.visits.some((v) => v.place.category === 'seating' && v.dwellSec > 0)) parts.push('a seated break');
   const spareMin = Math.floor((availableSec - it.totalSec) / 60);

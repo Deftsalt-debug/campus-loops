@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WalkLog } from '../src/core/calibration';
-import { clearLogs, getLogStorageStatus, listLogs, removeLog, saveLog, exportLogsJson, type KeyValueStore } from '../src/storage/calibrationLog';
+import { clearLogs, getLogStorageStatus, listLogs, readLogs, removeLog, saveLog, exportLogsJson, type KeyValueStore } from '../src/storage/calibrationLog';
 
 const valid: WalkLog = {
   id: 'walk-1',
@@ -66,6 +66,18 @@ describe('calibration storage boundaries', () => {
     expect(exportLogsJson(store)).not.toContain('unrelatedPrivateField');
   });
 
+  it('returns status and sanitized export records from the same storage read', () => {
+    const store = memoryStore([]);
+    store.getItem = vi.fn()
+      .mockReturnValueOnce(JSON.stringify([{ ...valid, privateLocation: [13, 74] }, null]))
+      .mockImplementation(() => { throw new Error('Storage became unavailable'); });
+    const snapshot = readLogs(store);
+    expect(snapshot).toEqual({ status: 'corrupt', logs: [valid] });
+    expect(store.getItem).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(JSON.stringify(snapshot.logs))).toEqual([valid]);
+    expect(readLogs(store)).toEqual({ status: 'unavailable', logs: [] });
+  });
+
   it('does not overwrite existing logs when the storage read fails', () => {
     const write = vi.fn();
     const store: KeyValueStore = {
@@ -98,6 +110,47 @@ describe('calibration storage boundaries', () => {
     expect(getLogStorageStatus(store)).toBe('ready');
     expect(saveLog(valid, store)).toBe(true);
     expect(listLogs(store)).toEqual([valid]);
+  });
+
+  it('refuses an append that would make previously readable calibration logs exceed the read limit', () => {
+    // Fill the store just below the documented defensive read boundary using
+    // valid rows, then append one row that crosses it. Nothing may be evicted.
+    const entries: WalkLog[] = [];
+    let encodedLength = 2; // JSON array brackets
+    for (let index = 0; ; index++) {
+      const entry = { ...valid, id: `walk-${index}`.padEnd(512, 'x'), planId: 'p'.repeat(512) };
+      const nextLength = JSON.stringify(entry).length + (entries.length ? 1 : 0);
+      if (encodedLength + nextLength > 1_000_000) break;
+      entries.push(entry);
+      encodedLength += nextLength;
+    }
+    const store = memoryStore(entries);
+    const before = store.getItem('campusloops.calibration.v1');
+    const write = vi.spyOn(store, 'setItem');
+    expect(getLogStorageStatus(store)).toBe('ready');
+    const overflow = { ...valid, id: 'new-walk'.padEnd(512, 'x'), planId: 'p'.repeat(512) };
+    expect(saveLog(overflow, store)).toBe(false);
+    expect(write).not.toHaveBeenCalled();
+    expect(store.getItem('campusloops.calibration.v1')).toBe(before);
+    expect(getLogStorageStatus(store)).toBe('ready');
+    expect(JSON.parse(exportLogsJson(store))).toEqual(entries);
+    // Removing or replacing a row with a shorter record still works at capacity.
+    expect(saveLog({ ...valid, id: entries[0].id }, store)).toBe(true);
+    expect(removeLog(entries[1].id, store)).toBe(true);
+    expect(saveLog(overflow, store)).toBe(true);
+    expect(getLogStorageStatus(store)).toBe('ready');
+  });
+
+  it('reads fresh calibration data for each mutation, preserving another tab’s latest log', () => {
+    const store = memoryStore([valid]);
+    listLogs(store);
+    const otherTab = { ...valid, id: 'another-tab' };
+    store.setItem('campusloops.calibration.v1', JSON.stringify([valid, otherTab]));
+    const thisTab = { ...valid, id: 'this-tab' };
+    expect(saveLog(thisTab, store)).toBe(true);
+    expect(listLogs(store)).toEqual([valid, otherTab, thisTab]);
+    expect(removeLog(valid.id, store)).toBe(true);
+    expect(listLogs(store)).toEqual([otherTab, thisTab]);
   });
 
   it('bounds reading oversized storage and distinguishes quota failure from corruption', () => {

@@ -41,7 +41,7 @@ Proceed if several people can name a situation where they would use it and at le
 - **Budget:** maximum estimated spend per person in INR; ₹0 is valid
 - **Occasion:** quiet conversation, friends, or showing a guest around
 - **Optional stops:** choose up to two must-visit places; a separate “Include a café” toggle is a requirement when enabled
-- **Pace:** relaxed or normal, under a small “More options” section
+- **Pace:** relaxed or normal, under the “Options” editor
 - **Stop time:** each selected stop has an editable dwell time; sitting and talking count as time
 - **Back by (optional):** a clock time today, such as a hostel in-time. The planner works to whichever comes first: the chosen duration, the back-by time, sunset, or the end of the pilot window. It tells the user which one applied.
 - **Avoid steps:** a hard filter that removes every edge marked `steps`. It is not a wheelchair-access promise.
@@ -404,8 +404,8 @@ Treat these as suggested weeks, not promised deadlines. If web development is ne
 
 - [x] Build the form and itinerary cards first
 - [x] Add Leaflet with path geometry and attribution (OSM demo geometry; verified geometry still needs Week 1)
-- [x] Surface back-by, avoid steps and rain mode under “More options”; show the deadline reason and sunset time
-- [x] Implement phone List / Map mode and laptop split view
+- [x] Surface back-by, avoid steps and rain mode under “Options”; show the deadline reason and sunset time
+- [x] Implement responsive phone map and laptop split view (the 2 October redesign uses an inline/full-screen persistent phone map)
 - [x] Add keyboard access and all error/empty/loading states
 - [x] Keep map failure independent from planning
 

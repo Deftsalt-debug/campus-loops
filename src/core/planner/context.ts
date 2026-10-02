@@ -109,7 +109,8 @@ export function createRequestContext(
   const searches = new Map<string, ShortestPaths>();
   const legs = new Map<string, Leg | null>();
   const leg = (from: string, to: string): Leg | null => {
-    const key = `${from}>${to}`;
+    // Node and segment IDs are unrestricted dataset strings; delimiters may occur in them.
+    const key = JSON.stringify([from, to]);
     if (legs.has(key)) return legs.get(key)!;
     let sp = searches.get(from);
     if (!sp) {
@@ -138,7 +139,7 @@ export function createRequestContext(
     if (!quickest || quickest.edges.length === 0) return null;
     const reused = overlapMeters(quickest, walked);
     if (reused === 0) return null; // already a loop
-    const key = `${from}|${[...walked].sort().join(',')}`;
+    const key = JSON.stringify([from, [...walked].sort()]);
     if (loops.has(key)) return loops.get(key)!;
     const penalised = (edge: Edge) => weight(edge) * (walked.has(edge.segmentId) ? loopOptions.reuseFactor : 1);
     const edges = reconstructPath(dijkstra(graph, from, penalised, { target: startNode }), startNode);

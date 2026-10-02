@@ -58,7 +58,7 @@ function run(
     context,
   });
 
-  if (!Number.isFinite(now.getTime())) return fail({ code: 'INVALID_INPUT', message: 'Choose a valid planning time.' });
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) return fail({ code: 'INVALID_INPUT', message: 'Choose a valid planning time.' });
   const inputError = validateRequest(dataset, request, config);
   if (inputError) return fail({ code: 'INVALID_INPUT', message: inputError });
 
@@ -327,7 +327,20 @@ function requiredMessage(place: Place, reason: Ineligibility, avoidSteps: boolea
 }
 
 function validateRequest(dataset: Dataset, r: PlanRequest, config: PlannerConfig): string | null {
+  if (typeof r !== 'object' || r === null || Array.isArray(r)) return 'Choose valid planning preferences.';
+  if (typeof r.startId !== 'string' || !r.startId) return 'Choose a starting point.';
   if (!isOccasion(r.occasion)) return 'Choose an occasion.';
+  if ([r.requireCafe, r.avoidSteps, r.rain].some((value) => typeof value !== 'boolean')) {
+    return 'Choose valid café, steps and rain preferences.';
+  }
+  if (!Array.isArray(r.requiredPlaceIds)) return 'Choose must-visit places from the list.';
+  for (const id of r.requiredPlaceIds) {
+    if (typeof id !== 'string') return 'Choose must-visit places from the list.';
+  }
+  if (r.dwellOverridesMin !== undefined &&
+      (typeof r.dwellOverridesMin !== 'object' || r.dwellOverridesMin === null || Array.isArray(r.dwellOverridesMin))) {
+    return 'Choose valid stop-time changes.';
+  }
   if (!['relaxed', 'normal'].includes(r.pace)) return 'Choose a pace.';
   if (!Number.isFinite(r.durationMin) || r.durationMin < config.minDurationMin || r.durationMin > config.maxDurationMin) {
     return `Time available must be between ${config.minDurationMin} and ${config.maxDurationMin} minutes.`;

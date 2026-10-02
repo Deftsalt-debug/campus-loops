@@ -159,14 +159,16 @@ export function importSavedPlans(json: string, store: KeyValueStore | null = def
     seen.add(plan.hash)
     additions.push(cleanPlan(plan))
   }
+  // A no-op restore needs no room and must not rewrite a legacy overflow store.
+  if (additions.length === 0) {
+    return { ok: true, imported: 0, skipped: backup.plans.length, total: existing.length }
+  }
   if (existing.length + additions.length > MAX_SAVED_PLANS) {
     const removeCount = existing.length + additions.length - MAX_SAVED_PLANS
     return { ok: false, reason: 'full', message: `Remove ${removeCount} saved walk${removeCount === 1 ? '' : 's'} to make room, then restore again. Nothing was imported.` }
   }
-  if (additions.length) {
-    try { store.setItem(SAVED_PLANS_KEY, JSON.stringify([...existing, ...additions])) } catch {
-      return { ok: false, reason: 'unavailable', message: 'Browser storage is full or unavailable. Nothing was imported.' }
-    }
+  try { store.setItem(SAVED_PLANS_KEY, JSON.stringify([...existing, ...additions])) } catch {
+    return { ok: false, reason: 'unavailable', message: 'Browser storage is full or unavailable. Nothing was imported.' }
   }
   return { ok: true, imported: additions.length, skipped: backup.plans.length - additions.length, total: existing.length + additions.length }
 }
