@@ -324,7 +324,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
           .addTo(routeGroup)
         const markers = L.layerGroup()
         const startMarker = L.marker(geometry.start, {
-          icon: L.divIcon({ className: '', html: '<div class="pin start">S</div>', iconSize: [32, 32] }),
+          icon: L.divIcon({ className: 'route-marker', html: '<div class="pin start">S</div>', iconSize: [32, 32] }),
           zIndexOffset: 1000,
           autoPanOnFocus: false,
         }).bindTooltip('', { direction: 'top', offset: [0, -14] })
@@ -335,7 +335,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
           const html = stop.passBy ? `<div class="pin pass" style="--i:${i}"></div>` : `<div class="pin" style="--i:${i}">${++stopNumber}</div>`
           const size: [number, number] = stop.passBy ? [14, 14] : [28, 28]
           return L.marker(stop.at, {
-            icon: L.divIcon({ className: '', html, iconSize: size }),
+            icon: L.divIcon({ className: 'route-marker', html, iconSize: size }),
             zIndexOffset: 900,
             autoPanOnFocus: false,
           }).bindTooltip('', { direction: 'top', offset: [0, -12] })

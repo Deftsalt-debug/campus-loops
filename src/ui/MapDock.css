@@ -141,6 +141,20 @@
 .route-line { cursor: pointer; transition: stroke-width var(--t1) var(--ease-out); }
 .route-line.route-drawing { transition: stroke-dashoffset 1s cubic-bezier(0.45, 0, 0.2, 1); }
 
+/* A phone gets a 44px hit area centred on the stop; the visible pin stays small.
+   Leaflet positions the wrapper with transform, so only its size/anchor margins
+   change. Tooltip anchors still use the stop's geographic centre. */
+@media (any-pointer: coarse) {
+  .map-shell .leaflet-marker-icon.route-marker {
+    width: 44px !important;
+    height: 44px !important;
+    margin-left: -22px !important;
+    margin-top: -22px !important;
+    display: grid;
+    place-items: center;
+  }
+}
+
 /* Pins pop in along the route, in order. */
 .pin {
   position: relative;
