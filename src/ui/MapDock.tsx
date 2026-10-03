@@ -166,8 +166,15 @@ export function MapDock({ wide, pending, title, subtitle, requiredPlaceIds = [],
           <input ref={searchField} id="map-place-search" type="search" value={query} maxLength={120}
             placeholder="Search MIT & Manipal"
             onFocus={() => setSearchOpen(true)}
+            onClick={() => setSearchOpen(true)}
             onChange={(event) => { setQuery(event.target.value); setSearchOpen(true) }}
-            onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setSearchOpen(false) } }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && searchOpen) {
+                event.preventDefault()
+                event.stopPropagation()
+                setSearchOpen(false)
+              }
+            }}
             aria-controls={searchOpen ? 'map-search-results' : undefined} />
           <button type="button" className="map-home" aria-label="Show the MIT campus area" onClick={() => {
             setQuery(''); setSearchOpen(false); setSelectedPlaceId(null); setCategory('all'); setCampusKey((key) => key + 1)

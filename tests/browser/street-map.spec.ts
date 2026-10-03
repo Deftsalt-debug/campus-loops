@@ -157,6 +157,8 @@ test('mobile map, full-screen keyboard focus, venue cards and responsive control
     await page.keyboard.press('Escape')
     await expect(page.locator('.map-search-results')).toHaveCount(0)
     await expect(dialog).toBeVisible()
+    await expect(mapSearch(page)).toHaveValue('library')
+    await mapSearch(page).click()
     await mapSearch(page).fill('library')
     await page.getByRole('list', { name: 'Matching campus places' }).getByRole('button', { name: /MIT Central Library/ }).click()
     const place = dialog.getByRole('region', { name: 'Place details: MIT Central Library (outside)', exact: true })
