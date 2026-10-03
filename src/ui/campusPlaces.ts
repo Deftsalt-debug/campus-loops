@@ -23,6 +23,18 @@ export function unconfirmedPlaceDetails(place: Place): string | null {
   return null
 }
 
+/** A saved planning window must never be presented as live business availability. */
+export function placeHoursNote(place: Place): string {
+  if (place.hoursStatus === 'unknown') return 'Opening hours unconfirmed';
+  if (place.hoursSource === 'placeholder') {
+    return place.hoursStatus === 'always'
+      ? 'Outdoor access assumed; check before visiting'
+      : 'Opening hours are estimates; check before visiting';
+  }
+  if (place.hoursSource === 'osm') return `Hours from saved OpenStreetMap data (${place.verifiedAt})`;
+  return `Hours recorded ${place.verifiedAt}; confirm today’s hours`;
+}
+
 /** Toggle a must-visit without losing another stop or creating a duplicate. */
 export function toggleRequiredPlace(required: [string, string], placeId: string): [string, string] {
   if (!placeId) return required

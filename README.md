@@ -2,11 +2,11 @@
 
 **Plan a walk around MIT Manipal that fits your time, budget and occasion, and get back in time.**
 
-You choose the occasion (a date, friends, a walking meeting, a study break and more), a start point, how long you have, and a budget. Campus Loops then suggests up to three genuinely different walks. Each one comes with stops, clock times, an estimated spend and a route drawn on the map. You can open any plan in Google Maps, save it to Google My Maps, or share a link.
+You choose the occasion (a date, friends, a walking meeting, a study break and more), a start point, how long you have, and a budget. Campus Loops then suggests up to three genuinely different walks. Each one comes with stops, estimated clock times and spend, and a route drawn on a saved campus path overview. Open a venue in Google Maps to check its current listing, send an itinerary to Google Maps for navigation, export it to Google My Maps, or share a link.
 
 **Live demo:** [Campus Loops](https://deftsalt-debug.github.io/campus-loops/) · [Release checklist](RELEASE.md)
 
-> ⚠️ **Demo data.** The saved OpenStreetMap snapshot was compared with the live source on 1 October 2026; all 7,099 elements matched. Paths and places haven't been walked or checked in person. Prices, free-stop assumptions and some opening hours are placeholders, and the app labels plans that rely on them. Treat routes as suggestions and check access before you go. See [map provenance and refresh instructions](data/osm/README.md).
+> ⚠️ **Saved demo data, not live venue information.** Walking and visit times are estimates. Paths, locations and opening hours come from a dated OpenStreetMap snapshot and demo assumptions; prices, free-stop assumptions and some hours are placeholders. Google Maps links let you check current listings and choose a matching venue, but do not update this planner automatically or guarantee that a venue is open. The source comparison on 1 October 2026 matched all 7,099 saved elements; it did not verify the campus in person. Check access and venue details before you go. See [map provenance and refresh instructions](data/osm/README.md).
 
 ---
 
@@ -17,13 +17,13 @@ You choose the occasion (a date, friends, a walking meeting, a study break and m
 | **8 occasion modes** | Date · Friends · Catch-up · Walking meeting · Show someone around · Solo reset · Study break · Active walk. Each mode has its own scoring rules, tags it avoids, sensible defaults and (for meetings and study breaks) a two-stop cap. Active walk ranks by time spent walking. |
 | **Six campus starts** | Tiger Circle, MIT Central Library, Student Plaza, KMC Greens, MIT Food Court 1 and MIT Food Court 2. Starts are approximate path anchors; entrances have not been surveyed. |
 | **Campus stop finder** | Search the catalogue by place name or interests such as quiet, food or coffee, filter by category, and add or remove up to two must-visits. Places with unknown prices or hours remain discoverable but cannot be added for planning. |
-| **Honest limits** | Plans enforce your time limit, budget, required stops and the dataset's access rules. They end before the estimated sunset, calculated on your device using NOAA equations, and before your optional *back-by* time, e.g. a hostel in-time. |
+| **Honest limits** | Plans apply your time limit, budget, required stops and the dataset's access rules to their estimates. They end before the estimated sunset, calculated on your device using NOAA equations, and before your optional *back-by* time, e.g. a hostel in-time. |
 | **Return buffer** | Reserve 0–30 minutes within your time limit for delays or getting to class after returning. The default is five minutes, and shared walks preserve custom buffers. Deadlines refresh when you return to a backgrounded tab. |
 | **Time at your stops** | Set 0–120 minutes for selected stops, including fractional minutes, or reset to the dataset default. Zero means a free pass-by and does not satisfy a café requirement. Shared custom times remain editable. |
 | **Walk comparison** | Compare total time, walking distance, stops, return buffer, spare time, cost and retracing; select a walk directly from the table. |
-| **Real routes** | Dijkstra (hand-written binary heap) runs over 485 imported path segments, represented by 390 nodes and 970 directed arcs, with walking times adjusted for hills using SRTM elevation (6 s per metre climbed). A pruned search tries every order of up to three shortlisted stops. |
+| **Saved campus routes** | Dijkstra (hand-written binary heap) runs over 485 imported path segments, represented by 390 nodes and 970 directed arcs, with walking times adjusted for hills using SRTM elevation (6 s per metre climbed). A pruned search tries every order of up to three shortlisted stops. |
 | **Clear failures** | If nothing fits, it tells you why and gives a number it actually calculated: "needs 36 minutes", "cheapest plan is ₹60", "sunset is at 18:20". It never silently relaxes a limit. |
-| **Google Maps** | **Start in Google Maps** preserves your stops within a three-waypoint limit that also works in mobile browsers; spare slots add route-shaping points (no API key needed). Google chooses its own paths. **KML for Google My Maps** carries the exact line, which then shows up in the Google Maps app under *Saved → Maps*. GPX export works with other apps. **Add to calendar** saves an .ics event with the itinerary and a 10-minute reminder. |
+| **Google Maps** | Venue links search Google Maps for the place name and campus area so you can check the matching listing's hours, entrance and location. These are external links, not a live Places feed. **Start in Google Maps** preserves your stops within a three-waypoint limit that also works in mobile browsers; spare slots add route-shaping points (no API key needed). Google chooses its own paths. **KML for Google My Maps** carries the exact line, which then shows up in the Google Maps app under *Saved → Maps*. GPX export works with other apps. **Add to calendar** saves an .ics event with the itinerary and a 10-minute reminder. |
 | **Sharing** | The request and route identity live in the link's `#fragment`. Opening a shared link re-checks that route against the current time even if its stops are no longer in the recommendation shortlist. If it no longer fits, the app says so instead of swapping in a different route. A dataset-version mismatch requires a fresh plan. |
 | **Saved plans and backups** | Keep up to 12 plans locally. Export a JSON backup and restore it on another device; validated restores merge without replacing existing walks or changing their dataset versions. Opening a saved walk rechecks its route. |
 | **Campus field notebook** | Record dated observations about prices, hours or access, then export them for manual review. Up to 100 notes stay in this browser. Observations never automatically change planner data. |
@@ -72,21 +72,33 @@ For a class break, choose your campus start, open **Must-visit** and search camp
 
 ## Hosting and map providers
 
-`npm run build` writes a static website to `dist/`. Its relative asset URLs work at the repository's `/campus-loops/` sub-path and on another static host. `npm run preview` serves the production build locally.
+`npm run build` writes a static website to `dist/`. Planning runs in the browser; the app needs no server, database, paid map API or API key. Its relative asset URLs work at the repository's `/campus-loops/` sub-path and at a host's root. Shared plans use URL fragments (`#…`), so no server-side routing or catch-all rewrite is required. `npm run preview` serves the production build locally.
 
-GitHub Actions verifies pull requests and deploys successful builds from `main` to Pages. Choose **GitHub Actions** as the Pages source in repository settings. PR checks use a read-only token and cannot cancel a `main` release. Only the deploy job receives Pages write permissions. Dependabot proposes npm and Actions updates; review them before merging.
+### Vercel
 
-The 2 October 2026 audit upgrades TypeScript to 7.0.2 and Node typings to 24.19.1, matching the recommended Node 24 runtime. GitHub Actions use verified immutable commit pins; Dependabot can propose pin updates. The dependency advisory gate rejects moderate or higher findings. `main` was unprotected at the audit checkpoint; requiring the **verify** job before merges is recommended. Repository permissions and protection settings were not changed.
+Import this repository into Vercel with **Root Directory = the repository root** (leave it unset, or use `.`), **Framework Preset = Vite**, and **Node.js Version = 24.x**. The committed `vercel.json` sets **Install Command = `npm ci`**, **Build Command = `npm run build`**, and **Output Directory = `dist`**. No environment variables are required for the default app. An eligible personal project can use Vercel Hobby within its limits; the app uses no serverless functions or paid map service. Run `npm run verify` before publishing; Vercel's configured build does not run the full test suite.
 
-The default map uses OpenStreetMap's public tile server for a small demo. For a broader audience, choose a provider whose terms and capacity fit your traffic. Copy `.env.example` to `.env.local`, then set these values before building:
+### GitHub Pages
+
+Choose **Settings → Pages → Build and deployment → Source = GitHub Actions**. The existing workflow uses Node 24, verifies pull requests, and deploys successful builds from `main` to Pages at `https://<owner>.github.io/campus-loops/`. It can also be triggered manually on `main`. PR checks use a read-only token and cannot cancel a `main` release; only the deploy job receives Pages write permissions. GitHub Pages supports this static build without a backend or API keys. Dependabot proposes npm and Actions updates; review them before merging.
+
+Both hosting options serve the same build. After deployment, check the public URL, reopen a shared walk and check Google Maps links on a phone. Configuration and local build checks do not establish that a deployment has been published. If hosting at a new domain, update `index.html`'s canonical and Open Graph URLs. Saved walks remain in the browser for the domain where they were created; use a backup to move them to a different host.
+
+### Map display and current venue details
+
+The default map draws the saved campus path network, start points and route directly in Leaflet. It makes no external tile requests and needs no provider account. This overview helps compare routes; it is not a live street map and does not make the saved paths or locations current. Google Maps venue links open the external listing search for current details, and **Start in Google Maps** hands navigation to Google. Google chooses its own paths, and a matching listing still needs checking. No Google Places, Google Maps JavaScript, Bing or other paid API is called; the app does not fetch live opening hours, prices, closures or venue updates.
+
+For an optional background street map, copy `.env.example` to `.env.local` and configure a provider whose terms and capacity fit your traffic before building:
 
 | Variable | Meaning |
 |---|---|
-| `VITE_MAP_TILE_URL` | HTTPS XYZ template such as `https://tiles.example.com/{z}/{x}/{y}.png`, or a same-origin `/path/{z}/{x}/{y}.png` template |
-| `VITE_MAP_TILE_ATTRIBUTION` | Required plain-text credit for a custom provider; linked OSM data attribution is also included |
-| `VITE_MAP_TILE_MAX_ZOOM` | Integer from 1 to 22; default 19 |
+| `VITE_MAP_TILE_URL` | Leave empty for the saved path overview. To add tiles, use an HTTPS XYZ template such as `https://tiles.example.com/{z}/{x}/{y}.png`, or a same-origin `/path/{z}/{x}/{y}.png` template. |
+| `VITE_MAP_TILE_ATTRIBUTION` | Required plain-text credit for a custom provider; linked OSM data attribution is also included. |
+| `VITE_MAP_TILE_MAX_ZOOM` | Integer from 1 to 22; default 19. |
 
-For Pages, set the same names under **Settings → Secrets and variables → Actions → Variables**, then rebuild. These Vite values are embedded in public JavaScript. Use only public, domain-restricted provider keys where supported; keep secret credentials on a server. Templates require `{z}`, `{x}` and `{y}`; optional `{s}` and `{r}` are supported, while unknown or incomplete placeholders are rejected before Leaflet loads them. If tile configuration is invalid or the provider is unavailable, the app explains the failure while the itinerary remains usable. Maps need a network connection; no tile prefetching or offline caching is implemented. If hosting at a new domain, update `index.html`'s canonical and Open Graph URLs.
+For Pages, set the same names under **Settings → Secrets and variables → Actions → Variables**; for Vercel, use **Project Settings → Environment Variables**, then rebuild. Remove an existing `VITE_MAP_TILE_URL` setting to use the default tile-free overview. These Vite values are embedded in public JavaScript. Use only public, domain-restricted provider keys where supported; keep secret credentials out of these values. Templates require `{z}`, `{x}` and `{y}`; optional `{s}` and `{r}` are supported, while unknown or incomplete placeholders are rejected before Leaflet loads them. Invalid or unavailable custom tiles produce an explanation while the saved path overview and itinerary remain usable. External maps need a network connection; no tile prefetching, offline tile download or guaranteed offline startup is implemented.
+
+The 2 October 2026 audit upgrades TypeScript to 7.0.2 and Node typings to 24.19.1, matching the recommended Node 24 runtime. GitHub Actions use verified immutable commit pins; Dependabot can propose pin updates. The dependency advisory gate rejects moderate or higher findings. `main` was unprotected at the audit checkpoint; requiring the **verify** job before merges is recommended. Repository permissions and protection settings were not changed.
 
 ## How it works
 
@@ -130,13 +142,13 @@ The importer respects explicit pedestrian access and direction rules, excludes r
 An offline rebuild preserves the snapshot acquisition date. A checksum mismatch stops the import, and the dataset version includes the snapshot date, importer revision and checksum prefix. Refreshed map tiles and a refreshed route dataset are separate things; neither replaces local field verification.
 
 - Map data and the demo dataset: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), available under the **Open Database License (ODbL) 1.0**. `src/data/manipal-demo.json` and `data/osm/` are derived from OSM and stay under the ODbL.
-- Map tiles: OpenStreetMap's public tile server, used under its [tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Choose a dedicated tile provider before wider use.
+- Map display: the default saved path overview uses no external tile service. If you configure tiles, follow that provider's attribution and usage terms. OpenStreetMap public tiles, if selected, remain subject to their [tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 - Elevation: SRTM 30 m via [OpenTopoData](https://www.opentopodata.org/).
 - Google Maps links use the public [Maps URLs](https://developers.google.com/maps/documentation/urls/get-started) format. No API key is used or stored.
 
 ## Privacy
 
-No accounts, tracking or analytics. Planning runs entirely in your browser. Your map provider sees your IP address and the map area you view. When you open a Google Maps link, Google receives the route points. Shared links contain your start point, route and preferences, so they aren't secret. Saved walks, calibration logs and field notes stay in this browser and are lost when site data is cleared; they leave only when you export them. Saved-walk backups can be restored; notebook exports support manual review. Blocked or full browser storage produces a clear failure. See [SECURITY.md](SECURITY.md) for reporting issues.
+No accounts, tracking or analytics. Planning runs entirely in your browser. The default path overview makes no external map requests. If you configure a tile provider, it sees your IP address and the map area you view. When you open a Google Maps link, Google receives your place search or route points. Shared links contain your start point, route and preferences, so they aren't secret. Saved walks, calibration logs and field notes stay in this browser and are lost when site data is cleared; they leave only when you export them. Saved-walk backups can be restored; notebook exports support manual review. Blocked or full browser storage produces a clear failure. See [SECURITY.md](SECURITY.md) for reporting issues.
 
 ## Status and next steps
 

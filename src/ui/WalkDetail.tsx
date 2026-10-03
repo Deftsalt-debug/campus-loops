@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { planToGpx, planToIcs, planToKml, planToText } from '../core/export/files'
-import { googleMapsDirectionsUrl } from '../core/export/googleMaps'
+import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../core/export/googleMaps'
 import { planGeometry } from '../core/geo'
 import type { Dataset, Plan } from '../core/types'
 import { getLogStorageStatus, saveLog } from '../storage/calibrationLog'
@@ -134,9 +134,10 @@ export const WalkDetail = memo(function WalkDetail({ plan, index, count, dataset
         <div><dt>Total</dt><dd>{mins(plan.totalSec)}</dd></div>
         <div><dt>Walking</dt><dd>{mins(plan.walkingSec)}</dd></div>
         <div><dt>Distance</dt><dd>{km(plan.distanceM)}</dd></div>
-        <div><dt>Spend</dt><dd>{rupees(plan.spendLowInr, plan.spendHighInr)}</dd></div>
+        <div><dt>Spend estimate</dt><dd>{rupees(plan.spendLowInr, plan.spendHighInr)}</dd></div>
       </dl>
 
+      <p className="detail-estimate hint">Times, prices and route are estimates from saved campus data. Google Maps chooses its own path; check venue listings before leaving.</p>
       <ol ref={list} className="timeline" aria-label="Itinerary">
         {row('start', 0, startSec, <i>S</i>, <>Leave <b>{startName}</b></>, `the start, ${startName}`)}
         {plan.visits.map((v, i) => row(
@@ -146,8 +147,11 @@ export const WalkDetail = memo(function WalkDetail({ plan, index, count, dataset
             {v.dwellSec > 0 ? <b>{v.name}</b> : <>Pass {v.name}</>}
             <small>
               {v.dwellSec > 0 ? `${mins(v.dwellSec)} stop` : 'no stop'}
-              {v.spendHighInr > 0 ? ` · ${rupees(v.spendLowInr, v.spendHighInr)} each (estimate)` : ''}
+              {v.dwellSec > 0 ? ` · ${rupees(v.spendLowInr, v.spendHighInr)} each (estimate)` : ''}
             </small>
+            <a className="stop-listing" href={googleMapsPlaceUrl(v.name)} target="_blank" rel="noopener noreferrer" aria-label={`Check hours & location for ${v.name} on Google Maps`}>
+              Check hours &amp; location <Icon name="arrow" size={14} />
+            </a>
           </>,
           v.name,
         ))}

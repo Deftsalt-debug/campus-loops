@@ -294,33 +294,33 @@ function diagnose(
   if (timedRequired) {
     return {
       code: 'REQUIRED_UNAVAILABLE',
-      message: `${timedRequired.name} isn't open long enough today for a visit that starts now. Remove it or try earlier in its opening hours.`,
+      message: `${timedRequired.name} doesn't fit the saved opening hours for a visit starting now. Check its current hours in Google Maps, or choose another stop.`,
     };
   }
   if (request.requireCafe) {
     return {
       code: 'NO_CAFE',
-      message: 'No verified café is open and reachable from this start right now. Remove the café requirement or try another start.',
+      message: 'No café fits the saved opening hours and routes from this start. Check current hours in Google Maps, remove the café requirement or try another start.',
     };
   }
   return {
     code: 'NOTHING_FITS',
-    message: 'No verified route fits these choices right now. Try another start or fewer required stops.',
+    message: 'No route in the saved campus data fits these choices. Try another start or fewer required stops.',
   };
 }
 
 function requiredMessage(place: Place, reason: Ineligibility, avoidSteps: boolean): string {
   switch (reason) {
     case 'UNKNOWN_HOURS':
-      return `${place.name} can't be scheduled yet: its opening hours haven't been verified.`;
+      return `${place.name} can't be scheduled yet: its opening hours are unknown in the saved data. Check its listing in Google Maps.`;
     case 'UNKNOWN_PRICE':
       return `${place.name} can't be scheduled yet: its prices haven't been checked.`;
     case 'CLOSED_TODAY':
-      return `${place.name} is not open today.`;
+      return `${place.name} has no opening hours recorded for today in the saved data. Check its current listing in Google Maps.`;
     case 'UNREACHABLE':
       return avoidSteps
         ? `${place.name} can't be reached and left without steps from this start.`
-        : `${place.name} can't be reached from this start on verified paths.`;
+        : `${place.name} can't be reached from this start on the saved paths.`;
     default:
       return `${place.name} can't be scheduled.`;
   }

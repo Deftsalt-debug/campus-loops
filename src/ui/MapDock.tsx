@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type ComponentProps } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
+import { googleMapsDirectionsUrl, googleMapsSearchUrl } from '../core/export/googleMaps'
+import { planGeometry } from '../core/geo'
 import { useDelayedFlag } from './hooks'
 import { Icon } from './icons'
 import { RouteMap } from './RouteMap'
@@ -26,6 +28,14 @@ export function MapDock({ wide, pending, title, subtitle, ...map }: Props) {
   const [hint, setHint] = useState(false)
   const [refitKey, setRefitKey] = useState(0)
   const busy = useDelayedFlag(pending, 140)
+  // These normal links work even if the optional Leaflet chunk fails to load.
+  const campusUrl = googleMapsSearchUrl('MIT Manipal, Karnataka, India')
+  const walkUrl = useMemo(() => {
+    const selected = map.plans.find((plan) => plan.id === map.selectedId)
+    if (!selected) return null
+    try { return googleMapsDirectionsUrl(planGeometry(map.dataset, selected)).url }
+    catch { return null }
+  }, [map.dataset, map.plans, map.selectedId])
   // Rotating or resizing into the side-by-side layout ends full screen.
   if (wide && expanded) setExpanded(false)
   const full = expanded && !wide
@@ -117,8 +127,9 @@ export function MapDock({ wide, pending, title, subtitle, ...map }: Props) {
     <section ref={ref} className={`map-dock${full ? ' is-expanded' : ''}${busy ? ' is-busy' : ''}`} aria-label={full ? 'Map, full screen' : 'Map'} role={full ? 'dialog' : undefined} aria-modal={full || undefined} tabIndex={full ? -1 : undefined} aria-busy={pending}>
       <div className="map-progress" aria-hidden="true" />
       <div className="map-label">
-        <span className="eyebrow">{subtitle}</span>
-        <b key={title ?? ''}>{title ?? 'Your walk starts here'}</b>
+        <span className="eyebrow">Saved campus overview</span>
+        <b key={title ?? ''}>{title ?? 'MIT Manipal'}</b>
+        <span className="sr-only">{subtitle}</span>
       </div>
       {!wide && (
         <button type="button" className="map-btn map-expand" onClick={() => { setExpanded((v) => !v); setRefitKey((k) => k + 1) }} aria-pressed={full}
@@ -127,6 +138,14 @@ export function MapDock({ wide, pending, title, subtitle, ...map }: Props) {
         </button>
       )}
       <RouteMap {...map} touchPan={touchPan} refitKey={refitKey} />
+      <nav className="map-external" aria-label="Google Maps">
+        <a href={campusUrl} target="_blank" rel="noopener noreferrer" aria-label="Explore MIT Manipal in Google Maps">
+          Google Maps <Icon name="arrow" size={14} />
+        </a>
+        {walkUrl && <a href={walkUrl} target="_blank" rel="noopener noreferrer" aria-label="Open this walk in Google Maps">
+          This walk <Icon name="arrow" size={14} />
+        </a>}
+      </nav>
       <p className={`map-gesture${hint ? ' is-on' : ''}`} aria-hidden="true">Use two fingers to move the map, or expand it</p>
     </section>
   )

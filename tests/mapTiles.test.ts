@@ -1,13 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_TILE_URL, mapTileConfiguration } from '../src/ui/mapTiles'
+import { OSM_TILE_URL, mapTileConfiguration } from '../src/ui/mapTiles'
 
 describe('public map tile configuration', () => {
-  it('keeps the linked OpenStreetMap credit with the default HTTPS XYZ server', () => {
+  it('uses a tile-free local overview by default, with credit for the bundled paths', () => {
     const config = mapTileConfiguration({})
     expect(config.ok).toBe(true)
     if (!config.ok) return
-    expect(config.url).toBe(DEFAULT_TILE_URL)
+    expect(config.url).toBeNull()
     expect(config.maxZoom).toBe(19)
+    expect(config.attribution).toContain('https://www.openstreetmap.org/copyright')
+  })
+
+  it('treats a blank tile URL as no remote tiles even when other settings remain', () => {
+    const config = mapTileConfiguration({ VITE_MAP_TILE_URL: '  ', VITE_MAP_TILE_ATTRIBUTION: 'Previous provider', VITE_MAP_TILE_MAX_ZOOM: '18' })
+    expect(config.ok && config.url).toBeNull()
+  })
+
+  it('supports an explicitly configured OSM server with its linked credit', () => {
+    const config = mapTileConfiguration({ VITE_MAP_TILE_URL: OSM_TILE_URL })
+    expect(config.ok).toBe(true)
+    if (!config.ok) return
+    expect(config.url).toBe(OSM_TILE_URL)
     expect(config.attribution).toContain('https://www.openstreetmap.org/copyright')
   })
 

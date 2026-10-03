@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { DatasetError, loadDataset } from './core/dataset/load'
+import { googleMapsSearchUrl } from './core/export/googleMaps'
 import { plan, rebuildPlan } from './core/planner/plan'
 import { decodeShare, encodeShare } from './core/share'
 import { toIst } from './core/time/clock'
@@ -269,6 +270,9 @@ export default function App() {
 
           <section className="step step-1" aria-labelledby="step-1">
             <p className="tagline">A little time. A good walk.</p>
+            <p className="hint">Plan with saved campus routes and estimated times.{' '}
+              <a href={googleMapsSearchUrl('places near MIT Manipal, Karnataka, India')} target="_blank" rel="noopener noreferrer">Check current places on Google Maps</a>.
+            </p>
             <h2 className="step-label" id="step-1"><span className="step-num" aria-hidden="true">1</span>Your outing</h2>
             <OutingBuilder dataset={dataset} state={form} onChange={update} durationError={durationError} budgetError={budgetError} previewError={previewError} />
           </section>
@@ -309,7 +313,7 @@ export default function App() {
             )}
 
             {shared?.note && <div className="notice"><p>{shared.note}</p>{shared.blocked && <button type="button" className="btn" onClick={() => { setShared(null); setForm(initialForm(dataset)) }}>Plan again</button>}</div>}
-            {shared?.planId && plans.length > 0 && <p className="notice soft"><span>Showing a shared plan, checked again just now.</span></p>}
+            {shared?.planId && plans.length > 0 && <p className="notice soft"><span>Shared plan recalculated against saved route data and your departure time. Venue details have not been refreshed.</span></p>}
 
             {blocker && (
               <div className={`notice ${blocker.code === 'PLAN_OUTDATED' ? '' : 'danger'}`} role="alert">

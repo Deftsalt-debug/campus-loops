@@ -1,8 +1,9 @@
 import { memo, useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { googleMapsPlaceUrl, googleMapsSearchUrl } from '../core/export/googleMaps'
 import { DEFAULT_CONFIG } from '../core/planner/config'
 import { OCCASION_IDS, OCCASIONS } from '../core/planner/occasions'
 import type { Dataset, Occasion, PlaceCategory } from '../core/types'
-import { CATEGORY_LABEL, findCampusPlaces, stopTimeError, toggleRequiredPlace, unconfirmedPlaceDetails, updateStopTime } from './campusPlaces'
+import { CATEGORY_LABEL, findCampusPlaces, placeHoursNote, stopTimeError, toggleRequiredPlace, unconfirmedPlaceDetails, updateStopTime } from './campusPlaces'
 import { ripple, spotlight } from './effects'
 import { fromIstInput, rupees } from './format'
 import { Icon } from './icons'
@@ -255,6 +256,7 @@ function StopsEditor({ dataset, state, onChange }: { dataset: Dataset; state: Fo
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<PlaceCategory | 'all'>('all')
   const matches = findCampusPlaces(dataset.places, query, category)
+  const mapsQuery = `${query.trim() || 'cafes'} near MIT Manipal, Karnataka, India`
   const chosen = state.required.filter(Boolean).flatMap((id) => dataset.places.filter((p) => p.id === id))
   const full = state.required.every(Boolean)
   // Keep custom times from shared links visible and editable, including when
@@ -301,10 +303,20 @@ function StopsEditor({ dataset, state, onChange }: { dataset: Dataset; state: Fo
         </fieldset>
       )}
 
+      <div className="places-heading">
+        <b>Saved campus places</b>
+        <p className="hint">This catalogue is a saved snapshot. Check Google Maps for current venue listings.</p>
+      </div>
       <div className="search-field">
         <Icon name="search" size={16} />
         <label className="sr-only" htmlFor="place-search">Search campus places</label>
-        <input id="place-search" className="input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Food, library, quiet…" />
+        <input id="place-search" className="input" type="search" maxLength={120} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Food, library, quiet…" />
+      </div>
+      <div className="places-discovery">
+        <a className="btn ghost" href={googleMapsSearchUrl(mapsQuery)} target="_blank" rel="noopener noreferrer" aria-label={`Search Google Maps for ${mapsQuery}`}>
+          Search Google Maps <Icon name="arrow" size={16} />
+        </a>
+        <p className="hint">Discover more places there. Only saved campus places can be added to this walk.</p>
       </div>
       <div className="row" role="group" aria-label="Filter campus places">
         {(['all', 'cafe', 'seating', 'landmark'] as const).map((c) => (
@@ -321,8 +333,12 @@ function StopsEditor({ dataset, state, onChange }: { dataset: Dataset; state: Fo
               <li key={place.id} style={{ '--i': Math.min(i, 8) } as CSSProperties}>
                 <div>
                   <b>{place.name}</b>
-                  <small>{CATEGORY_LABEL[place.category]} · {place.spendLowInr === null || place.spendHighInr === null ? 'Price unconfirmed' : `${rupees(place.spendLowInr, place.spendHighInr)}${place.spendHighInr > 0 ? ' estimate' : ''}`}</small>
+                  <small>{CATEGORY_LABEL[place.category]} · {place.spendLowInr === null || place.spendHighInr === null ? 'Price unconfirmed' : `${rupees(place.spendLowInr, place.spendHighInr)} (estimate)`}</small>
+                  <small>{placeHoursNote(place)}</small>
                   <small>{unavailable ? `${unavailable}; unavailable for planning.` : place.tags.slice(0, 3).join(' · ')}</small>
+                  <a className="place-listing" href={googleMapsPlaceUrl(place.name)} target="_blank" rel="noopener noreferrer" aria-label={`Check hours & location for ${place.name} on Google Maps`}>
+                    Check hours &amp; location <Icon name="arrow" size={14} />
+                  </a>
                 </div>
                 <button type="button" className={`add-stop${isChosen ? ' is-on' : ''}`} aria-label={`${isChosen ? 'Remove' : 'Add'} ${place.name} ${isChosen ? 'from' : 'to'} must-visits`}
                   aria-pressed={isChosen} disabled={!isChosen && (Boolean(unavailable) || full)} onClick={() => onChange({ required: toggleRequiredPlace(state.required, place.id) })}>
@@ -333,7 +349,7 @@ function StopsEditor({ dataset, state, onChange }: { dataset: Dataset; state: Fo
           })}
         </ul>
       )}
-      <p className="hint">Descriptions and prices come from the campus dataset. Confirm opening hours and facilities locally.</p>
+      <p className="hint">Hours, locations and prices are not updated live in this planner. Confirm details before leaving.</p>
     </div>
   )
 }

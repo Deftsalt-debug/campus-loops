@@ -131,13 +131,20 @@
 .search-field { position: relative; }
 .search-field svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .search-field .input { padding-left: 36px; }
+.places-heading { display: grid; gap: 4px; }
+.places-heading > b { font-size: 0.9rem; }
+.places-discovery { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.places-discovery .btn { min-height: 44px; }
+.places-discovery .hint { flex: 1 1 180px; }
 .campus-places { list-style: none; padding: 0; margin: 0; display: grid; max-height: 300px; overflow-y: auto; overscroll-behavior: contain; }
 .campus-places li { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding: 10px 2px; }
 .campus-places li > div { flex: 1; min-width: 0; }
 .campus-places b { display: block; font-size: 0.86rem; overflow-wrap: anywhere; }
 .campus-places small { display: block; color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+.campus-places .place-listing { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 0.78rem; text-underline-offset: 3px; }
+.campus-places .place-listing svg { flex: none; }
 .add-stop {
-  width: 40px; height: 40px; flex: none; display: grid; place-items: center;
+  width: 44px; height: 44px; flex: none; display: grid; place-items: center;
   border-radius: 50%; border: 1px solid var(--line); background: var(--surface-solid); color: var(--accent);
   cursor: pointer; transition: transform var(--t2) var(--ease-spring), background var(--fast), border-color var(--fast), color var(--fast);
 }

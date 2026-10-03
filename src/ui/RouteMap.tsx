@@ -5,11 +5,11 @@ import type { Dataset, Plan } from '../core/types'
 import { clock } from './format'
 import { useMediaQuery } from './hooks'
 import { Icon } from './icons'
-import { escapeHtml, mapTileConfiguration } from './mapTiles'
+import { campusOverviewPaths, escapeHtml, mapTileConfiguration, OSM_ATTRIBUTION } from './mapTiles'
 import { releaseTouchZoom } from './mapLifecycle'
 
-// The planner and itinerary work independently of the optional map library and
-// third-party tile service. Only tiles for the viewed area are requested.
+// The campus overview is drawn from bundled paths. Remote tiles are opt-in;
+// the planner and itinerary work independently of either map dependency.
 const tileConfig = mapTileConfiguration({
   VITE_MAP_TILE_URL: import.meta.env.VITE_MAP_TILE_URL,
   VITE_MAP_TILE_ATTRIBUTION: import.meta.env.VITE_MAP_TILE_ATTRIBUTION,
@@ -199,8 +199,14 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
       })
       L.control.zoom({ position: 'bottomright' }).addTo(m)
       map.current = m
+      // One multi-polyline keeps the local overview cheap, including on phones.
+      // It remains below the selectable routes and requires no tile requests.
+      L.polyline(campusOverviewPaths(dataset.edges), {
+        color: MUTED, weight: 2, opacity: 0.65, interactive: false,
+        className: 'campus-paths', attribution: OSM_ATTRIBUTION,
+      }).addTo(m)
       layers.current = L.layerGroup().addTo(m)
-      if (tileConfig.ok) {
+      if (tileConfig.ok && tileConfig.url) {
         tiles = L.tileLayer(tileConfig.url, {
           maxZoom: tileConfig.maxZoom,
           attribution: tileConfig.attribution,
@@ -233,6 +239,8 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
         tiles.addTo(m)
         retryTiles.current = retry
         window.addEventListener('online', retry)
+      } else {
+        queueMicrotask(() => { if (active) setStatus('ready') })
       }
 
       const placeLayer = L.layerGroup().addTo(m)
@@ -460,16 +468,16 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
   const canRefit = Boolean(selectedName && geometries.some(({ plan, route }) => plan.id === selectedId && route) && L && status !== 'failed')
   return (
     <div className="map-shell">
-      <p id={instructionsId} className="sr-only">Use the arrow keys to move the map and plus or minus to zoom. Tab to route stops for details. The itinerary also lists every stop.</p>
-      <div ref={el} className="map" role="region" aria-label={selectedName ? `Route map: ${selectedName}` : 'Campus route map'} aria-describedby={instructionsId} tabIndex={0} />
+      <p id={instructionsId} className="sr-only">Saved campus paths, not live venue information. Use the arrow keys to move the overview and plus or minus to zoom. Tab to route stops for details. The itinerary also lists every stop.</p>
+      <div ref={el} className="map" role="region" aria-label={selectedName ? `Saved route overview: ${selectedName}` : 'Saved campus route overview'} aria-describedby={instructionsId} tabIndex={0} />
       {canRefit && <button type="button" className="map-btn map-refit" onClick={showRoute} aria-label={`Show the entire route for ${selectedName}`}><Icon name="target" size={16} /><span>Show entire route</span></button>}
-      {status === 'loading' && tileConfig.ok && <p className="map-status quiet" role="status">Loading map…</p>}
-      {status === 'failed' && <div className="map-status notice" role="status"><p>The map couldn't load. Use the itinerary list for the route, or reload to try again.</p><button type="button" className="btn" onClick={() => window.location.reload()}>Reload map</button></div>}
-      {!tileConfig.ok && status !== 'failed' && <p className="map-status notice" role="status">Map pictures are unavailable: {tileConfig.message} Use the itinerary list.</p>}
+      {status === 'loading' && <p className="map-status quiet" role="status">Loading overview…</p>}
+      {status === 'failed' && <div className="map-status notice" role="status"><p>The overview couldn't load. Open Google Maps below or use the itinerary.</p><button type="button" className="btn" onClick={() => window.location.reload()}>Reload overview</button></div>}
+      {!tileConfig.ok && status !== 'failed' && <p className="map-status notice" role="status">Optional map pictures are unavailable: {tileConfig.message} Saved campus paths are still shown.</p>}
       {routeFailed && status === 'ready' && <p className="map-status notice" role="status">Some route lines couldn't be drawn. Use the itinerary list.</p>}
       {status === 'tiles-failed' && (
         <div className="map-status notice compact" role="status">
-          <p>Map pictures are unavailable or slow. Route lines still use the campus data.</p>
+          <p>Map pictures are unavailable or slow. Saved campus paths are still shown.</p>
           <button type="button" className="btn small" onClick={() => retryTiles.current?.()}>Retry</button>
         </div>
       )}

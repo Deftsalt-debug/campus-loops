@@ -1,7 +1,19 @@
-export const DEFAULT_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+import type { Dataset, LatLng } from '../core/types'
+
+export const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+export const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
 export const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+
+/** Both directions share a segment ID; draw each allowed physical path once. */
+export function campusOverviewPaths(edges: Dataset['edges']): LatLng[][] {
+  const seen = new Set<string>()
+  return edges.filter((edge) => {
+    if (!edge.allowed || seen.has(edge.segmentId)) return false
+    seen.add(edge.segmentId)
+    return true
+  }).map((edge) => edge.geometry)
+}
 
 interface TileEnvironment {
   VITE_MAP_TILE_URL?: string
@@ -10,18 +22,20 @@ interface TileEnvironment {
 }
 
 export type TileConfiguration =
-  | { ok: true; url: string; attribution: string; maxZoom: number }
+  | { ok: true; url: string | null; attribution: string; maxZoom: number }
   | { ok: false; message: string }
 
-/** Build-time configuration. Provider keys in VITE_* variables are public. */
+/** Tiles are opt-in; the saved campus overview needs no remote map service.
+ * Build-time configuration. Provider keys in VITE_* variables are public. */
 export function mapTileConfiguration(env: TileEnvironment): TileConfiguration {
-  const url = env.VITE_MAP_TILE_URL?.trim() || DEFAULT_TILE_URL
+  const url = env.VITE_MAP_TILE_URL?.trim() || null
   const credit = env.VITE_MAP_TILE_ATTRIBUTION?.trim() || ''
   const zoom = env.VITE_MAP_TILE_MAX_ZOOM?.trim() || '19'
   const maxZoom = Number(zoom)
   if (!/^\d+$/.test(zoom) || !Number.isInteger(maxZoom) || maxZoom < 1 || maxZoom > 22) {
     return { ok: false, message: 'The map tile zoom limit must be an integer between 1 and 22.' }
   }
+  if (!url) return { ok: true, url: null, attribution: OSM_ATTRIBUTION, maxZoom }
   if (!['{z}', '{x}', '{y}'].every((coordinate) => url.includes(coordinate))) {
     return { ok: false, message: 'The map tile address must include {z}, {x} and {y}.' }
   }
@@ -39,7 +53,7 @@ export function mapTileConfiguration(env: TileEnvironment): TileConfiguration {
   } catch {
     return { ok: false, message: 'The map tile address is invalid.' }
   }
-  if (url !== DEFAULT_TILE_URL && !credit) {
+  if (url !== OSM_TILE_URL && !credit) {
     return { ok: false, message: 'The custom map tile provider needs visible attribution.' }
   }
   return {

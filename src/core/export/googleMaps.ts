@@ -13,6 +13,23 @@ const MIN_SPACING_M = 80;
 
 const fmt = ([lat, lng]: LatLng) => `${lat.toFixed(6)},${lng.toFixed(6)}`;
 
+/**
+ * Open Google's current search results without an API key or a server. This is
+ * a named search, not a verified listing or a live data feed into our planner.
+ * Keep even non-ASCII searches within the documented 2,048-character URL limit.
+ */
+export function googleMapsSearchUrl(query: string): string {
+  const text = Array.from(query.trim().replace(/\s+/g, ' ')).slice(0, 150).join('');
+  const params = new URLSearchParams({ api: '1', query: text || 'MIT Manipal, Karnataka, India' });
+  return `https://www.google.com/maps/search/?${params.toString()}`;
+}
+
+/** Search for the venue itself, rather than its approximate walking-path anchor. */
+export function googleMapsPlaceUrl(name: string): string {
+  const venue = Array.from(name.trim().replace(/\s*\((?:outside|exterior)\)$/i, '').trim()).slice(0, 100).join('');
+  return googleMapsSearchUrl(venue ? `${venue}, Manipal, Karnataka, India` : 'MIT Manipal, Karnataka, India');
+}
+
 export interface GoogleMapsLink {
   url: string;
   /** Points sent as waypoints, in walking order (stops plus shaping points). */

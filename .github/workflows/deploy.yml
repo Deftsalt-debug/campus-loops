@@ -18,7 +18,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Build-time public values. Leave unset to use the small-demo OSM default.
+    # Optional public tile settings. Leave unset for the saved path overview.
     env:
       VITE_MAP_TILE_URL: ${{ vars.VITE_MAP_TILE_URL }}
       VITE_MAP_TILE_ATTRIBUTION: ${{ vars.VITE_MAP_TILE_ATTRIBUTION }}

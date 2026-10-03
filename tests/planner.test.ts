@@ -194,7 +194,7 @@ describe('required places and the café requirement', () => {
 
   it('knows a place is closed all day', () => {
     const res = plan(fixture(), request({ requiredPlaceIds: ['p_cafe_b'] }), ist('2026-10-04', '10:00'));
-    expect(res.blockers[0].message).toContain('not open today');
+    expect(res.blockers[0].message).toContain('no opening hours recorded for today in the saved data');
   });
 
   it('refuses more required stops than the stop cap allows', () => {

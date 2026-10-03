@@ -40,9 +40,15 @@ export function AboutPanel({ dataset, logCount, onLogsChanged, notify }: Props) 
       )}
 
       <section>
+        <h3>Current venues and hours</h3>
+        <p className="hint">Use each place’s “Check hours &amp; location” link to search Google Maps for its current listing. Confirm the venue and its entrance there; route pins here mark nearby walking paths. Listings can change or be incomplete.</p>
+        <p className="hint">This app calculates estimates from saved campus data. It does not fetch live opening hours, prices, closures or walking times. Reopening a walk recalculates the plan without refreshing that data. Google Maps chooses its own walking route; KML and GPX exports keep this app’s saved route.</p>
+      </section>
+
+      <section>
         <h3>Privacy</h3>
         <p className="hint">
-          Map attribution is shown on the map. The tile provider sees your IP address and the map area you view. Shared links contain the
+          The default route overview uses saved paths without contacting a map provider. If this site enables map tiles, the tile provider sees your IP address and the map area you view. Google receives your search or route when you open a Google Maps link. Shared links contain the
           start point, route and preferences. Saved walks, field notes and calibration logs stay on this device unless you export them. No accounts or analytics.
         </p>
       </section>
