@@ -158,6 +158,12 @@ export function validateDataset(data: Dataset, options: ValidateOptions = {}): I
   for (const p of data.places) {
     if (!isPlaceIdentifier(p.id)) error('BAD_ID', `Place id "${p.id}" must use 1–120 letters, digits, underscores, colons or hyphens; dots separate stops in shared routes.`);
     if (!nodes.has(p.nodeId)) error('MISSING_REF', `Place ${p.id} refers to missing node ${p.nodeId}.`);
+    if (p.position && (!Number.isFinite(p.position[0]) || Math.abs(p.position[0]) > 90 || !Number.isFinite(p.position[1]) || Math.abs(p.position[1]) > 180)) {
+      error('BAD_NUMBER', `Place ${p.id} has invalid display coordinates.`);
+    }
+    if (p.osmRef !== undefined && p.osmRef.match(/^(node|way)\/[1-9]\d*/)?.[0] !== p.osmRef) {
+      error('BAD_ID', `Place ${p.id} has an invalid OpenStreetMap feature reference.`);
+    }
     if (!isNonNegative(p.dwellDefaultMin)) error('BAD_NUMBER', `Place ${p.id} dwell must be finite and nonnegative.`);
     if ((p.spendLowInr === null) !== (p.spendHighInr === null)) {
       error('SPEND_RANGE', `Place ${p.id} must have both or neither spend bounds.`);

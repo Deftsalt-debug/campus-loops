@@ -11,6 +11,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:browser": "playwright test",
     "benchmark": "tsx scripts/benchmark-planner.ts",
     "data:fixture": "tsx scripts/build-fixture.ts",
     "data:check": "tsx scripts/validate-data.ts",
@@ -19,12 +20,12 @@
     "data:osm": "tsx scripts/import-osm.ts"
   },
   "dependencies": {
-    "leaflet": "^1.9.4",
+    "maplibre-gl": "6.11.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@types/leaflet": "^1.9.22",
+    "@playwright/test": "1.63.0",
     "@types/node": "^24.19.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

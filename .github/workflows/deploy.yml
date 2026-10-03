@@ -17,8 +17,8 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # Optional public tile settings. Leave unset for the saved path overview.
+    timeout-minutes: 25
+    # Leave unset for the free OpenFreeMap street map.
     env:
       VITE_MAP_TILE_URL: ${{ vars.VITE_MAP_TILE_URL }}
       VITE_MAP_TILE_ATTRIBUTION: ${{ vars.VITE_MAP_TILE_ATTRIBUTION }}
@@ -37,6 +37,20 @@ jobs:
       - run: npm run verify
       # The demo data must still pass structural checks (it is expected to fail --production).
       - run: npm run data:check -- src/data/manipal-demo.json
+      - name: Install browser QA runtime
+        run: npx playwright install --with-deps chromium
+      - name: Check real maps and browser flows twice before publication
+        run: npm run test:browser -- --repeat-each=2
+      - name: Keep browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-qa
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Record the release and built-file checksums
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: node scripts/verify-deployment.mjs manifest dist "$GITHUB_SHA"

@@ -2,7 +2,7 @@
 
 **Plan a walk around MIT Manipal that fits your time, budget and occasion, and get back in time.**
 
-You choose the occasion (a date, friends, a walking meeting, a study break and more), a start point, how long you have, and a budget. Campus Loops then suggests up to three genuinely different walks. Each one comes with stops, estimated clock times and spend, and a route drawn on a saved campus path overview. Open a venue in Google Maps to check its current listing, send an itinerary to Google Maps for navigation, export it to Google My Maps, or share a link.
+You choose the occasion (a date, friends, a walking meeting, a study break and more), a start point, how long you have, and a budget. Campus Loops then suggests up to three genuinely different walks. Each one comes with stops, estimated clock times and spend, and a route drawn over a detailed street map of MIT Manipal and its surroundings. Open a venue in Google Maps to check its current listing, send an itinerary to Google Maps for navigation, export it to Google My Maps, or share a link.
 
 **Live demo:** [Campus Loops](https://deftsalt-debug.github.io/campus-loops/) · [Release checklist](RELEASE.md)
 
@@ -16,11 +16,12 @@ You choose the occasion (a date, friends, a walking meeting, a study break and m
 |---|---|
 | **8 occasion modes** | Date · Friends · Catch-up · Walking meeting · Show someone around · Solo reset · Study break · Active walk. Each mode has its own scoring rules, tags it avoids, sensible defaults and (for meetings and study breaks) a two-stop cap. Active walk ranks by time spent walking. |
 | **Six campus starts** | Tiger Circle, MIT Central Library, Student Plaza, KMC Greens, MIT Food Court 1 and MIT Food Court 2. Starts are approximate path anchors; entrances have not been surveyed. |
-| **Campus stop finder** | Search the catalogue by place name or interests such as quiet, food or coffee, filter by category, and add or remove up to two must-visits. Places with unknown prices or hours remain discoverable but cannot be added for planning. |
+| **Campus stop finder** | Search from the map or Must-visit picker by place name or interests such as quiet, food or coffee. Filter the map by category, open a venue card, and add or remove up to two must-visits. Places with unknown prices or hours remain discoverable but cannot be added for planning. |
 | **Honest limits** | Plans apply your time limit, budget, required stops and the dataset's access rules to their estimates. They end before the estimated sunset, calculated on your device using NOAA equations, and before your optional *back-by* time, e.g. a hostel in-time. |
 | **Return buffer** | Reserve 0–30 minutes within your time limit for delays or getting to class after returning. The default is five minutes, and shared walks preserve custom buffers. Deadlines refresh when you return to a backgrounded tab. |
 | **Time at your stops** | Set 0–120 minutes for selected stops, including fractional minutes, or reset to the dataset default. Zero means a free pass-by and does not satisfy a café requirement. Shared custom times remain editable. |
 | **Walk comparison** | Compare total time, walking distance, stops, return buffer, spare time, cost and retracing; select a walk directly from the table. |
+| **Street map** | Pan and zoom a MapLibre GL map with OpenFreeMap streets, buildings, green spaces and place labels. Venue pins retain their source positions separately from the nearby path nodes used for routing; mapped positions do not establish actual entrances. OpenFreeMap refreshes its OSM-derived basemap weekly; the planner catalogue and routes remain a separate saved dataset. |
 | **Saved campus routes** | Dijkstra (hand-written binary heap) runs over 485 imported path segments, represented by 390 nodes and 970 directed arcs, with walking times adjusted for hills using SRTM elevation (6 s per metre climbed). A pruned search tries every order of up to three shortlisted stops. |
 | **Clear failures** | If nothing fits, it tells you why and gives a number it actually calculated: "needs 36 minutes", "cheapest plan is ₹60", "sunset is at 18:20". It never silently relaxes a limit. |
 | **Google Maps** | Venue links search Google Maps for the place name and campus area so you can check the matching listing's hours, entrance and location. These are external links, not a live Places feed. **Start in Google Maps** preserves your stops within a three-waypoint limit that also works in mobile browsers; spare slots add route-shaping points (no API key needed). Google chooses its own paths. **KML for Google My Maps** carries the exact line, which then shows up in the Google Maps app under *Saved → Maps*. GPX export works with other apps. **Add to calendar** saves an .ics event with the itinerary and a 10-minute reminder. |
@@ -39,11 +40,13 @@ User testing found the previous layout cluttered, with no clear order of events,
 2. **Choose a walk.** Compact cards, each with a miniature of its route's shape. Hovering or focusing a card previews its route on the map; hovering a line on the map highlights its card. **Compare** opens the comparison table in place.
 3. **Head out.** The chosen walk's timeline, then one primary action, **Start in Google Maps**, with Share, Save and Copy beside it. Hovering a stop highlights its pin; the pin button pans the map to it (and, on phones, brings the map into view). Clicking a pin highlights its row. Exports (KML, GPX, calendar) and walk logging are tucked into disclosures.
 
+**Explore the map.** Search MIT Manipal places directly in the map panel, use category chips to show food, landmarks or outdoor stops, and select a pin or search result for its details. **Add to walk** makes it a must-visit; the Google Maps action opens its current listing search. The campus control restores the general area view. Basemap labels also show nearby places outside the saved planner catalogue.
+
 Saved walks, the field notebook, data provenance, privacy and the calibration log are in a drawer (the bookmark and menu buttons, or **Demo** for data notes). It slides in from the right on laptops and up from the bottom on phones. Its header stays visible while content scrolls. Touch controls have 44 px targets, editable fields use at least 16 px text, and the panel, drawer and expanded map respect device safe areas.
 
-**Motion explains change.** Tokens in `src/styles.css` (`--t1`/`--t2`/`--t3`, `--ease-out`, `--ease-spring`) drive every transition. Things that open slide and fade in; chosen things pop; a newly selected route draws itself from start to finish after the camera flies to it, and its pins pop in in order. While new walks are worked out, a thin bar runs along the map and old routes dim, so a press is always acknowledged. Reduced-motion turns all of it off, including map flights.
+**Motion explains change.** Tokens in `src/styles.css` (`--t1`/`--t2`/`--t3`, `--ease-out`, `--ease-spring`) drive every transition. Things that open slide and fade in; chosen things pop; the map frames the selected route and highlights its stops. While new walks are worked out, a thin bar runs along the map and old routes dim, so a press is always acknowledged. Reduced-motion turns all of it off, including map flights.
 
-**Responsiveness.** There is exactly one Leaflet map for the life of the page; crossing the phone/laptop breakpoint never rebuilds it. Selecting a walk commits the card first and renders the itinerary and map in a deferred pass. The dot-grid backdrop is a CSS pattern with compositor-only hotspot and ripple layers; the old full-screen canvas was re-rasterised every frame and was the main source of map jank. On phones, one finger scrolls the page past the inline map (two fingers move it, or expand it to full screen).
+**Responsiveness.** There is one MapLibre GL map for the life of the page; crossing the phone/laptop breakpoint never rebuilds it. Selecting a walk commits the card first and renders the itinerary and map in a deferred pass. MapLibre is loaded on demand, uses one worker, and renders a flat map without rotation or 3D terrain. The dot-grid backdrop is a CSS pattern with compositor-only hotspot and ripple layers. On phones, one finger scrolls the page past the inline map (two fingers move it, or expand it to full screen).
 
 ## Quick start
 
@@ -62,6 +65,7 @@ For a class break, choose your campus start, open **Must-visit** and search camp
 |---|---|
 | `npm run verify` | Lint, typecheck, all unit and invariant tests, production build |
 | `npm test` | Vitest only |
+| `npm run test:browser -- --repeat-each=2` | Two browser QA passes against the production build at both root and Pages paths, including real map resources and provider failure/retry; install Chromium first with `npx playwright install --with-deps chromium` |
 | `npm run benchmark` | Repeatable 96-request campus workload, timings and a result digest; compare on the same machine |
 | `npm audit --audit-level=moderate` | Check dependencies for known advisories; also runs in release CI |
 | `npm run data:check -- <file>` | Validate a dataset; defaults to the Manipal dataset used by the app. Add `--production` to also refuse demo and placeholder data |
@@ -80,30 +84,32 @@ Import this repository into Vercel with **Root Directory = the repository root**
 
 ### GitHub Pages
 
-Choose **Settings → Pages → Build and deployment → Source = GitHub Actions**. The existing workflow uses Node 24, verifies pull requests, and deploys successful builds from `main` to Pages at `https://<owner>.github.io/campus-loops/`. It can also be triggered manually on `main`. PR checks use a read-only token and cannot cancel a `main` release; only the deploy job receives Pages write permissions. GitHub Pages supports this static build without a backend or API keys. Dependabot proposes npm and Actions updates; review them before merging.
+Choose **Settings → Pages → Build and deployment → Source = GitHub Actions**. The workflow uses Node 24, verifies pull requests, and deploys successful builds from `main` to Pages at `https://<owner>.github.io/campus-loops/`. It runs the real-map browser suite twice before publication, retains screenshots and reports for seven days, then checks the published release and asset checksums. It can also be triggered manually on `main`. PR checks use a read-only token and cannot cancel a `main` release; only the deploy job receives Pages write permissions. GitHub Pages supports this static build without a backend or API keys. Dependabot proposes npm and Actions updates; review them before merging.
 
 Both hosting options serve the same build. After deployment, check the public URL, reopen a shared walk and check Google Maps links on a phone. Configuration and local build checks do not establish that a deployment has been published. If hosting at a new domain, update `index.html`'s canonical and Open Graph URLs. Saved walks remain in the browser for the domain where they were created; use a backup to move them to a different host.
 
 ### Map display and current venue details
 
-The default map draws the saved campus path network, start points and route directly in Leaflet. It makes no external tile requests and needs no provider account. This overview helps compare routes; it is not a live street map and does not make the saved paths or locations current. Google Maps venue links open the external listing search for current details, and **Start in Google Maps** hands navigation to Google. Google chooses its own paths, and a matching listing still needs checking. No Google Places, Google Maps JavaScript, Bing or other paid API is called; the app does not fetch live opening hours, prices, closures or venue updates.
+The default map uses **MapLibre GL** and the **OpenFreeMap Liberty** style to display streets, buildings, green spaces and place labels around MIT Manipal. It needs no account, API key or app backend. The browser loads the style, tiles, fonts and sprites from `tiles.openfreemap.org`; allow HTTPS access to that domain when running in a restricted environment. See [OpenFreeMap](https://openfreemap.org/) for its public service and update policy. Its OSM-derived basemap is rebuilt weekly, rather than synchronized with Google Maps.
 
-For an optional background street map, copy `.env.example` to `.env.local` and configure a provider whose terms and capacity fit your traffic before building:
+Map search and venue pins use the saved planner catalogue. Each imported place keeps its OSM feature position and source link separately from the nearby path node used to calculate walks. A building centre or mapped point is not a surveyed entrance. Routes follow the saved pedestrian graph, not a live directions service. The snapshot date remains **1 October 2026**; updating the background map does not refresh planner hours, prices, paths or closures. Google Maps venue links open an external listing search for current details, and **Start in Google Maps** hands navigation to Google, which chooses its own paths. No Google Places or Google Maps JavaScript API is called.
+
+For a custom raster background, copy `.env.example` to `.env.local` and configure a provider whose terms and capacity fit your traffic before building:
 
 | Variable | Meaning |
 |---|---|
-| `VITE_MAP_TILE_URL` | Leave empty for the saved path overview. To add tiles, use an HTTPS XYZ template such as `https://tiles.example.com/{z}/{x}/{y}.png`, or a same-origin `/path/{z}/{x}/{y}.png` template. |
+| `VITE_MAP_TILE_URL` | Leave empty for the OpenFreeMap vector street map. To override it, use an HTTPS XYZ template such as `https://tiles.example.com/{z}/{x}/{y}.png`, or a same-origin `/path/{z}/{x}/{y}.png` template. |
 | `VITE_MAP_TILE_ATTRIBUTION` | Required plain-text credit for a custom provider; linked OSM data attribution is also included. |
-| `VITE_MAP_TILE_MAX_ZOOM` | Integer from 1 to 22; default 19. |
+| `VITE_MAP_TILE_MAX_ZOOM` | Integer from 1 to 22 for a custom raster provider; default 19. |
 
-For Pages, set the same names under **Settings → Secrets and variables → Actions → Variables**; for Vercel, use **Project Settings → Environment Variables**, then rebuild. Remove an existing `VITE_MAP_TILE_URL` setting to use the default tile-free overview. These Vite values are embedded in public JavaScript. Use only public, domain-restricted provider keys where supported; keep secret credentials out of these values. Templates require `{z}`, `{x}` and `{y}`; optional `{s}` and `{r}` are supported, while unknown or incomplete placeholders are rejected before Leaflet loads them. Invalid or unavailable custom tiles produce an explanation while the saved path overview and itinerary remain usable. External maps need a network connection; no tile prefetching, offline tile download or guaranteed offline startup is implemented.
+For Pages, set the same names under **Settings → Secrets and variables → Actions → Variables**; for Vercel, use **Project Settings → Environment Variables**, then rebuild. Remove an existing `VITE_MAP_TILE_URL` setting to use the default OpenFreeMap street map. These Vite values are embedded in public JavaScript. Use only public, domain-restricted provider keys where supported; keep secret credentials out of these values. Templates require `{z}`, `{x}` and `{y}`; optional `{s}` and `{r}` are supported, while unknown or incomplete placeholders are rejected. If map loading or WebGL fails, a retry message appears while venue search, the itinerary and Google Maps actions remain available. A network connection is needed for map resources; offline map downloads and guaranteed offline startup are not implemented.
 
 The 2 October 2026 audit upgrades TypeScript to 7.0.2 and Node typings to 24.19.1, matching the recommended Node 24 runtime. GitHub Actions use verified immutable commit pins; Dependabot can propose pin updates. The dependency advisory gate rejects moderate or higher findings. `main` was unprotected at the audit checkpoint; requiring the **verify** job before merges is recommended. Repository permissions and protection settings were not changed.
 
 ## How it works
 
 ```
-form ─► plan(dataset, request, now) ─► up to 3 plans ─► list + Leaflet map
+form ─► plan(dataset, request, now) ─► up to 3 plans ─► list + MapLibre map
               │
               ├─ deadline = min(duration, back-by, sunset, pilot hours)
               ├─ graph: allowed edges (minus steps if avoiding them)
@@ -130,7 +136,7 @@ form ─► plan(dataset, request, now) ─► up to 3 plans ─► list + Leafl
 | `src/core/share.ts` | Versioned, validated share links |
 | `src/core/dataset/` | Validation (IDs, geometry, segments, hours, reachability, production rules) |
 | `src/storage/` | Saved walks and validated backups, calibration logs, and local field observations |
-| `src/ui/` | React components: outing builder, walk chooser and detail, map dock and Leaflet map, drawer, backdrop and effects |
+| `src/ui/` | React components: outing builder, walk chooser and detail, map dock and MapLibre GL map, drawer, backdrop and effects |
 | `scripts/` | OSM importer, validator CLI, GeoJSON export, fixture generator |
 | `data/osm/` | Saved OSM snapshot, checksum and acquisition metadata, elevation cache, and provenance notes, so the demo rebuilds offline |
 | `tests/` | Unit, behaviour, export, demo-data and invariant tests |
@@ -142,19 +148,19 @@ The importer respects explicit pedestrian access and direction rules, excludes r
 An offline rebuild preserves the snapshot acquisition date. A checksum mismatch stops the import, and the dataset version includes the snapshot date, importer revision and checksum prefix. Refreshed map tiles and a refreshed route dataset are separate things; neither replaces local field verification.
 
 - Map data and the demo dataset: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), available under the **Open Database License (ODbL) 1.0**. `src/data/manipal-demo.json` and `data/osm/` are derived from OSM and stay under the ODbL.
-- Map display: the default saved path overview uses no external tile service. If you configure tiles, follow that provider's attribution and usage terms. OpenStreetMap public tiles, if selected, remain subject to their [tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
+- Map display: [MapLibre GL JS](https://maplibre.org/) with [OpenFreeMap](https://openfreemap.org/) Liberty and OSM-derived vector tiles. The map displays provider and data attribution. If you configure custom tiles, follow that provider's attribution and usage terms. OpenStreetMap public tiles, if selected, remain subject to their [tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 - Elevation: SRTM 30 m via [OpenTopoData](https://www.opentopodata.org/).
 - Google Maps links use the public [Maps URLs](https://developers.google.com/maps/documentation/urls/get-started) format. No API key is used or stored.
 
 ## Privacy
 
-No accounts, tracking or analytics. Planning runs entirely in your browser. The default path overview makes no external map requests. If you configure a tile provider, it sees your IP address and the map area you view. When you open a Google Maps link, Google receives your place search or route points. Shared links contain your start point, route and preferences, so they aren't secret. Saved walks, calibration logs and field notes stay in this browser and are lost when site data is cleared; they leave only when you export them. Saved-walk backups can be restored; notebook exports support manual review. Blocked or full browser storage produces a clear failure. See [SECURITY.md](SECURITY.md) for reporting issues.
+No accounts, tracking or analytics. Planning runs entirely in your browser. OpenFreeMap receives your IP address and requests for the map area you view, plus style, font and sprite requests. A custom tile provider receives its corresponding map requests if configured. When you open a Google Maps link, Google receives your place search or route points. Shared links contain your start point, route and preferences, so they aren't secret. Saved walks, calibration logs and field notes stay in this browser and are lost when site data is cleared; they leave only when you export them. Saved-walk backups can be restored; notebook exports support manual review. Blocked or full browser storage produces a clear failure. See [SECURITY.md](SECURITY.md) for reporting issues.
 
 ## Status and next steps
 
 This is a working demo, not a verified pilot. To make it trustworthy, follow Week 1 of [ROADMAP.md](ROADMAP.md): walk the routes, check access, prices and hours, and record cover and steps, until `npm run data:check -- --production` passes. [MANIFEST.md](MANIFEST.md) explains every part of the project in detail.
 
-The 2 October 2026 repository audit and mobile follow-up pass lint, typechecking, 1,829 tests across 25 files, the production build and structural data validation; the dependency audit reports zero vulnerabilities. An additional 768-scenario campus matrix independently replays route timing, budgets and exact shared-plan rebuilding. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
+The historical 2 October 2026 repository audit and mobile follow-up passed lint, typechecking, 1,829 tests across 25 files, the production build and structural data validation; the dependency audit reported zero vulnerabilities for that build. An additional 768-scenario campus matrix independently replays route timing, budgets and exact shared-plan rebuilding. All recommended outings include actual walking, even when starting at a café. The production-data gate remains blocked by the fixture marker and placeholders. See [RELEASE.md](RELEASE.md) for current evidence and the distinction from earlier browser baselines.
 
 Three useful MIT Manipal additions for a future verified pilot are:
 

@@ -55,13 +55,16 @@ const nodeFeatures = data.nodes.map((n) => ({
 
 const placeFeatures = data.places.map((p) => {
   const n = nodes.get(p.nodeId)!;
+  const [lat, lng] = p.position ?? [n.lat, n.lng];
   return {
     type: 'Feature',
-    geometry: { type: 'Point', coordinates: [n.lng, n.lat] },
+    geometry: { type: 'Point', coordinates: [lng, lat] },
     properties: {
       kind: 'place',
       id: p.id,
       name: p.name,
+      routingNodeId: p.nodeId,
+      osmRef: p.osmRef ?? null,
       category: p.category,
       spend: p.spendLowInr === null ? 'unknown' : `₹${p.spendLowInr}–${p.spendHighInr}`,
       hoursStatus: p.hoursStatus,

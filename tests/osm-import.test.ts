@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { isPedestrianAllowed, parseOpeningHours, pedestrianDirections, resolvePlaceHours } from '../scripts/osm-rules';
+import { haversineM } from '../src/core/geo';
+import type { LatLng } from '../src/core/types';
 import demo from '../src/data/manipal-demo.json';
 
 describe('OSM pedestrian import rules', () => {
@@ -103,5 +105,34 @@ describe('saved map provenance', () => {
     expect(demo.datasetVersion).toBe(`manipal-demo-${metadata.retrievedAt.slice(0, 10)}-r2-${metadata.sha256.slice(0, 8)}`);
     expect(metadata.fieldVerified).toBe(false);
     expect(demo.isFixture).toBe(true);
+  });
+
+  it('places every venue at its source feature, while preserving a separate documented path anchor', () => {
+    type SourceNode = { type: 'node'; id: number; lat: number; lon: number };
+    type SourceWay = { type: 'way'; id: number; nodes: number[] };
+    const snapshot = JSON.parse(readFileSync('data/osm/raw.json', 'utf8')) as { elements: (SourceNode | SourceWay)[] };
+    const sourceNodes = new Map(snapshot.elements.filter((element): element is SourceNode => element.type === 'node').map((node) => [node.id, node]));
+    const sourceWays = new Map(snapshot.elements.filter((element): element is SourceWay => element.type === 'way').map((way) => [way.id, way]));
+    const anchors = new Map(demo.nodes.map((node) => [node.id, node]));
+    for (const place of demo.places) {
+      const [kind, id] = place.osmRef.split('/');
+      const points = kind === 'node'
+        ? [sourceNodes.get(Number(id))!]
+        : sourceWays.get(Number(id))!.nodes.map((nodeId) => sourceNodes.get(nodeId)!);
+      expect(points.length, place.id).toBeGreaterThan(0);
+      expect(points.every(Boolean), place.id).toBe(true);
+      // Nodes retain the original mapped coordinate; ways retain the importer
+      // centre of their saved vertices, not their nearby walk-network anchor.
+      const sourcePosition: LatLng = [
+        points.reduce((total, point) => total + point.lat, 0) / points.length,
+        points.reduce((total, point) => total + point.lon, 0) / points.length,
+      ];
+      expect(place.position, place.id).toEqual(sourcePosition);
+      expect(place.source, place.id).toContain(`OSM ${kind} ${id};`);
+      const anchor = anchors.get(place.nodeId)!;
+      const distance = haversineM(sourcePosition, [anchor.lat, anchor.lng]);
+      expect(distance, place.id).toBeLessThanOrEqual(120);
+      expect(place.source, place.id).toContain(`anchored to path node ${Math.round(distance)} m away (entrance not surveyed)`);
+    }
   });
 });

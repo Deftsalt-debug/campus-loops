@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { OSM_TILE_URL, mapTileConfiguration } from '../src/ui/mapTiles'
 
 describe('public map tile configuration', () => {
-  it('uses a tile-free local overview by default, with credit for the bundled paths', () => {
+  it('leaves the raster URL unset for the default vector street map', () => {
     const config = mapTileConfiguration({})
     expect(config.ok).toBe(true)
     if (!config.ok) return
@@ -11,7 +11,7 @@ describe('public map tile configuration', () => {
     expect(config.attribution).toContain('https://www.openstreetmap.org/copyright')
   })
 
-  it('treats a blank tile URL as no remote tiles even when other settings remain', () => {
+  it('selects the default vector map for a blank raster URL even when other settings remain', () => {
     const config = mapTileConfiguration({ VITE_MAP_TILE_URL: '  ', VITE_MAP_TILE_ATTRIBUTION: 'Previous provider', VITE_MAP_TILE_MAX_ZOOM: '18' })
     expect(config.ok && config.url).toBeNull()
   })
@@ -47,7 +47,7 @@ describe('public map tile configuration', () => {
     expect(mapTileConfiguration({ VITE_MAP_TILE_URL: 'https://example.org/{z}/{x}', VITE_MAP_TILE_ATTRIBUTION: 'Example maps' }).ok).toBe(false)
   })
 
-  it.each(['https://example.org/{z}/{x}/{y}?key={apiKey}', 'https://example.org/{z}/{x}/{y}/{broken', 'https://example.org/{z}/{x}/{y}/oops}'])('rejects templates that would fail inside Leaflet: %s', (url) => {
+  it.each(['https://example.org/{z}/{x}/{y}?key={apiKey}', 'https://example.org/{z}/{x}/{y}/{broken', 'https://example.org/{z}/{x}/{y}/oops}'])('rejects templates that would fail to resolve: %s', (url) => {
     expect(mapTileConfiguration({ VITE_MAP_TILE_URL: url, VITE_MAP_TILE_ATTRIBUTION: 'Example maps' })).toEqual({ ok: false, message: 'The map tile address has an unsupported or incomplete placeholder.' })
   })
 

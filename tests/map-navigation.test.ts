@@ -26,18 +26,18 @@ function render(overrides: Partial<ComponentProps<typeof MapDock>> = {}) {
   return { html, links }
 }
 
-describe('Google Maps navigation outside the optional overview renderer', () => {
-  it('offers the campus map with no plans, before Leaflet has initialized', () => {
+describe('Google Maps navigation outside the street-map renderer', () => {
+  it('offers the campus map with no plans, before MapLibre has initialized', () => {
     const { html, links } = render()
-    expect(html).toContain('Saved campus overview')
-    expect(html).toContain('Loading overview')
+    expect(html).toContain('MIT Manipal')
+    expect(html).toContain('Loading street map')
     expect(links).toHaveLength(1)
     expect(links[0].pathname).toBe('/maps/search/')
     expect(links[0].searchParams.get('query')).toBe('MIT Manipal, Karnataka, India')
     expect(links[0].searchParams.get('api')).toBe('1')
   })
 
-  it('offers walking directions for the selected route independently of Leaflet initialization', () => {
+  it('offers walking directions for the selected route independently of MapLibre initialization', () => {
     const { links } = render({ plans: [selected], selectedId: selected.id, title: selected.name })
     expect(links).toHaveLength(2)
     const directions = links.find((link) => link.pathname === '/maps/dir/')!

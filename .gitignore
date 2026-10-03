@@ -25,6 +25,8 @@ dist-ssr
 
 # Generated data exports
 out
+playwright-report/
+test-results/
 .claude/
 .env
 .env.*

@@ -16,6 +16,7 @@ import { fromIstInput, istInputValue } from './ui/format'
 import { useMediaQuery } from './ui/hooks'
 import { Icon, LoopMark } from './ui/icons'
 import { MapDock } from './ui/MapDock'
+import { toggleRequiredPlace } from './ui/campusPlaces'
 import { OutingBuilder } from './ui/OutingBuilder'
 import { PlanComparison } from './ui/PlanComparison'
 import { initialForm, sharedForm, toRequest, type FormState } from './ui/planningState'
@@ -291,6 +292,8 @@ export default function App() {
             onSelect={onSelect}
             onHover={setHoveredId}
             onFocusStop={onFocusStop}
+            requiredPlaceIds={form.required}
+            onTogglePlace={(id) => update({ required: toggleRequiredPlace(form.required, id) })}
           />
 
           <section id="outings" tabIndex={-1} className="step step-2" aria-labelledby="step-2" aria-busy={pending}>

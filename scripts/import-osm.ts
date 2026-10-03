@@ -7,7 +7,8 @@
 // The result is a DEMO, not a verified pilot dataset:
 // - Paths are real OSM ways but have not been walked. Missing covered/step tags
 //   are not proof that a route is sheltered or accessible.
-// - Places are real OSM features anchored to the nearest path node, not a surveyed entrance.
+// - Place markers retain their OSM feature coordinates. Routing uses the nearest
+//   path node, not a surveyed entrance; building centres are not entrances either.
 // - Hours come from OSM `opening_hours` where present, otherwise placeholders. Prices
 //   are placeholder ranges. Each place records which, and plans show a warning.
 // - isFixture stays true so `data:check --production` refuses it.
@@ -202,11 +203,12 @@ function centre(ref: PlaceSpec['osm']): LatLng {
 
 const anchors = new Set<number>();
 const placeAnchors = PLACES.map((spec) => {
-  const [lat, lng] = centre(spec.osm);
+  const position = centre(spec.osm);
+  const [lat, lng] = position;
   const near = nearestWayNode(lat, lng);
   if (near.distance > 120) throw new Error(`${spec.id} is ${Math.round(near.distance)} m from any path`);
   anchors.add(near.id);
-  return { spec, anchor: near.id, distance: near.distance };
+  return { spec, position, anchor: near.id, distance: near.distance };
 });
 const foodCourtStarts: typeof STARTS = [
   ['food_court_1', 'MIT Food Court 1', ...centre('w186260324')],
@@ -309,7 +311,7 @@ for (const s of kept) {
   if (direction.reverse) edges.push({ id: `${s.segmentId}:r`, from: `n${s.to}`, to: `n${s.from}`, geometry: [...geometry].reverse(), ...base });
 }
 
-const places: Place[] = placeAnchors.map(({ spec, anchor, distance }) => {
+const places: Place[] = placeAnchors.map(({ spec, position, anchor, distance }) => {
   const osmId = Number(spec.osm.slice(1));
   const tags = (spec.osm[0] === 'n' ? osmNodes.get(osmId)?.tags : osmWays.get(osmId)?.tags) ?? {};
   const name = spec.name ?? tags.name ?? spec.id;
@@ -318,6 +320,8 @@ const places: Place[] = placeAnchors.map(({ spec, anchor, distance }) => {
     id: spec.id,
     name,
     nodeId: `n${anchor}`,
+    position,
+    osmRef: `${spec.osm[0] === 'n' ? 'node' : 'way'}/${osmId}`,
     category: spec.category,
     dwellDefaultMin: spec.dwellMin,
     spendLowInr: spec.spend === 'free' ? 0 : spec.spend[0],
@@ -331,6 +335,8 @@ const places: Place[] = placeAnchors.map(({ spec, anchor, distance }) => {
 });
 
 const dataset: Dataset = {
+  // Display-only feature positions do not invalidate saved plans: route anchors,
+  // geometry, IDs, hours and costs still come from the same import revision.
   datasetVersion: `manipal-demo-${snapshotDate}-r2-${metadata.sha256.slice(0, 8)}`,
   timezone: 'Asia/Kolkata',
   isFixture: true,

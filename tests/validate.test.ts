@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DatasetError, loadDataset } from '../src/core/dataset/load';
 import { validateDataset } from '../src/core/dataset/validate';
-import type { Dataset } from '../src/core/types';
+import type { Dataset, LatLng } from '../src/core/types';
 import { fixture } from './helpers';
 
 const errorCodes = (ds: Dataset, production = false) =>
@@ -53,6 +53,27 @@ describe('validateDataset', () => {
     const ds = fixture();
     ds.places.push({ ...ds.places[0], id: 'Cafe_1:west-wing' }, { ...ds.places[0], id: 'x'.repeat(120) });
     expect(errorCodes(ds)).toEqual([]);
+  });
+
+  it('accepts a mapped feature position separate from its routing anchor', () => {
+    const ds = fixture();
+    ds.places[0].position = [13.35, 74.79];
+    ds.places[0].osmRef = 'node/13781284649';
+    expect(errorCodes(ds)).toEqual([]);
+    expect(loadDataset(ds).dataset.places[0].position).toEqual([13.35, 74.79]);
+  });
+
+  it.each<LatLng>([[NaN, 74.79], [13.35, Infinity], [-Infinity, 74.79], [90.01, 74.79], [-90.01, 74.79], [13.35, 180.01], [13.35, -180.01]])('rejects invalid venue coordinates [%s, %s]', (lat, lng) => {
+    const ds = fixture();
+    ds.places[0].position = [lat, lng];
+    expect(errorCodes(ds)).toContain('BAD_NUMBER');
+    expect(() => loadDataset(ds)).toThrow(DatasetError);
+  });
+
+  it.each(['node/0', 'way/-1', 'node/1.5', 'relation/1', 'node/1?edit=true', '//example.com', 'node/1\n'])('rejects an invalid OSM source reference: %s', (osmRef) => {
+    const ds = fixture();
+    Object.assign(ds.places[0], { osmRef });
+    expect(errorCodes(ds)).toContain('BAD_ID');
   });
 
   it.each(['dataset', 'start', 'curated'] as const)('rejects a %s identifier that cannot be shared', (kind) => {
@@ -109,6 +130,12 @@ describe('loadDataset', () => {
     ['missing windows', (ds) => ((ds.places[0] as unknown as Record<string, unknown>).verifiedOpenWindows = null)],
     ['null window', (ds) => (ds.places[0].verifiedOpenWindows as unknown[]).push(null)],
     ['malformed geometry point', (ds) => (ds.edges[0].geometry as unknown[]).push([13])],
+    ['incomplete venue coordinate', (ds) => Object.assign(ds.places[0], { position: [13] })],
+    ['excess venue coordinates', (ds) => Object.assign(ds.places[0], { position: [13, 74, 1] })],
+    ['nonnumeric venue coordinate', (ds) => Object.assign(ds.places[0], { position: ['13', 74] })],
+    ['null venue position', (ds) => Object.assign(ds.places[0], { position: null })],
+    ['object venue position', (ds) => Object.assign(ds.places[0], { position: { lat: 13, lng: 74 } })],
+    ['nonstring source reference', (ds) => Object.assign(ds.places[0], { osmRef: 1 })],
     ['unknown hours status', (ds) => ((ds.places[0] as unknown as Record<string, unknown>).hoursStatus = 'open')],
     ['invalid fixture flag', (ds) => ((ds as unknown as Record<string, unknown>).isFixture = 'false')],
   ])('reports a DatasetError for %s rather than crashing during validation', (_label, mutate) => {

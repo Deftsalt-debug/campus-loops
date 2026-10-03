@@ -1,0 +1,53 @@
+/* Real street geography stays legible in both page themes. Provider style is unmodified. */
+/* The lazy provider CSS sets position:relative; keep this full-height map explicit. */
+.vector-map-shell .map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vector-map-shell .maplibregl-map { font: inherit; background: #edf0e7; }
+.vector-map-shell .maplibregl-canvas:focus-visible { outline: 3px solid var(--accent); outline-offset: -4px; }
+.vector-map-shell .maplibregl-ctrl-group { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-solid); box-shadow: var(--shadow); }
+.vector-map-shell .maplibregl-ctrl-group button { width: 42px; height: 42px; }
+.vector-map-shell .maplibregl-ctrl-group button + button { border-top-color: var(--line); }
+.vector-map-shell .maplibregl-ctrl-bottom-right { right: var(--map-safe-right); bottom: var(--map-safe-bottom); display: flex; flex-direction: column; align-items: flex-end; max-width: 100%; }
+.vector-map-shell .maplibregl-ctrl-bottom-left { left: var(--map-safe-left); bottom: var(--map-safe-bottom); }
+.vector-map-shell .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { order: 1; margin: 0 12px 12px 0; }
+.vector-map-shell .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib { order: 2; margin: 0; padding: 0 5px; }
+.vector-map-shell .maplibregl-ctrl-attrib { max-width: min(100%, 360px); font: 10px/20px var(--sans, sans-serif); background: rgba(255,255,255,.94); color: #263b33; }
+.vector-map-shell .maplibregl-ctrl-attrib a { color: #263b33; }
+.vector-map-shell .maplibregl-ctrl-scale { margin-left: 12px; background: rgba(255,255,255,.85); color: #344740; border-color: #52635d; font: 10px/16px var(--sans, sans-serif); }
+.vector-map-shell .maplibregl-cooperative-gesture-screen { background: rgba(19,34,29,.6); font: inherit; }
+.vector-map-shell .maplibregl-popup { z-index: 6; pointer-events: none; }
+.vector-map-shell .maplibregl-popup-content { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-solid); color: var(--fg); padding: 9px 12px; box-shadow: var(--shadow); }
+.walk-stop-popup .maplibregl-popup-content > div { display: grid; gap: 3px; font-size: .78rem; line-height: 1.4; }
+.walk-stop-popup .maplibregl-popup-content span { color: var(--muted); }
+.vector-map-shell .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--surface-solid); }
+.vector-map-shell .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--surface-solid); }
+
+/* Every marker is an ordinary keyboard-accessible button; the 44px target stays fixed. */
+.map-place-marker, .map-stop-marker {
+  width: 44px; height: 44px; padding: 0; border: 0; margin: 0; border-radius: 50%;
+  background: transparent; display: grid; place-items: center; cursor: pointer;
+  overflow: visible; -webkit-tap-highlight-color: transparent;
+}
+.map-place-marker { --place-color: #7861a8; z-index: 2; }
+.map-place-marker[hidden] { display: none; }
+.map-place-marker.is-cafe { --place-color: #a85422; }
+.map-place-marker.is-seating { --place-color: #398244; }
+.map-place-marker.is-waypoint { --place-color: #606e77; }
+.map-place-icon { display: grid; place-items: center; width: 25px; height: 25px; background: var(--place-color); color: white; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 1px 5px #15342c44; transition: scale .15s; }
+.map-place-icon svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.map-place-name { position: absolute; left: 38px; top: 50%; transform: translateY(-50%); max-width: 150px; color: var(--place-color); font: 600 11px/1.2 var(--sans, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: -1px -1px #fff, 1px -1px #fff, -1px 1px #fff, 1px 1px #fff, 0 0 4px #fff; pointer-events: none; }
+.map-place-marker.is-label-hidden .map-place-name { display: none; }
+.map-place-marker:hover, .map-place-marker:focus-visible, .map-place-marker.is-selected { z-index: 5; }
+.map-place-marker:hover .map-place-icon, .map-place-marker:focus-visible .map-place-icon, .map-place-marker.is-selected .map-place-icon { scale: 1.18; box-shadow: 0 0 0 4px #fff9, 0 3px 9px #17332a55; }
+.map-place-marker:hover .map-place-name, .map-place-marker:focus-visible .map-place-name, .map-place-marker.is-selected .map-place-name { display: block; padding: 4px 6px; border-radius: 5px; background: #ffffffed; box-shadow: 0 1px 4px #15342c22; }
+.map-stop-marker { z-index: 4; }
+.map-stop-pin { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 50%; background: #1a73e8; color: #fff; border: 2px solid #fff; box-shadow: 0 2px 7px #203b334d; font-size: .78rem; font-weight: 750; transition: scale .16s, box-shadow .16s; }
+.map-stop-pin.is-start { width: 32px; height: 32px; background: #243c35; }
+.map-stop-pin.is-pass { width: 14px; height: 14px; border: 3px solid #1a73e8; background: #fff; }
+.map-stop-marker:hover .map-stop-pin, .map-stop-marker:focus-visible .map-stop-pin, .map-stop-marker.is-focus .map-stop-pin { scale: 1.16; box-shadow: 0 0 0 5px #1a73e830, 0 3px 9px #203b3355; }
+.map-stop-marker:focus-visible, .map-place-marker:focus-visible { outline: 3px solid #134c3e; outline-offset: 1px; }
+.map-dock.is-busy .map-stop-marker { opacity: .55; }
+.vector-map-shell.has-map-error .map-place-marker, .vector-map-shell.has-map-error .map-stop-marker { visibility: hidden; }
+.vector-map-shell .map-load-error { left: 50%; top: 50%; bottom: auto; right: auto; transform: translate(-50%, -50%); width: min(340px, calc(100% - 34px)); background: var(--surface-solid); }
+.map-load-error p { margin: 6px 0 10px; }
+@media (prefers-reduced-motion: reduce) { .map-place-icon, .map-stop-pin { transition: none; } }
+@media (prefers-color-scheme: dark) { .vector-map-shell .maplibregl-ctrl-icon { filter: invert(1); } }

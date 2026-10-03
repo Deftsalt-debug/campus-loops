@@ -52,7 +52,8 @@ export function datasetShapeIssues(value: unknown): Issue[] {
   }));
   entries('places', (item, path) => {
     fields(item, path, {
-      id: string, name: string, nodeId: string, category: oneOf(['cafe', 'seating', 'landmark', 'waypoint']),
+      id: string, name: string, nodeId: string, position: optional(coordinates), osmRef: optional(string),
+      category: oneOf(['cafe', 'seating', 'landmark', 'waypoint']),
       dwellDefaultMin: number, spendLowInr: nullableNumber, spendHighInr: nullableNumber, tags: strings,
       hoursStatus: oneOf(['verified', 'always', 'unknown']),
       hoursSource: optional(oneOf(['survey', 'osm', 'placeholder'])),

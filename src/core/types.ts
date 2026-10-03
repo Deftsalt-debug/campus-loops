@@ -46,7 +46,12 @@ export interface Place {
   /** 1–120 ASCII letters, digits, underscores, colons or hyphens; dots are route separators. */
   id: string;
   name: string;
+  /** Walk-network anchor used by the planner; it is not necessarily the venue entrance. */
   nodeId: string;
+  /** Mapped feature coordinate for display; a building centre is not a surveyed entrance. */
+  position?: LatLng;
+  /** Source feature identity, usable as a path on https://www.openstreetmap.org/. */
+  osmRef?: `${'node' | 'way'}/${number}`;
   category: PlaceCategory;
   dwellDefaultMin: number;
   spendLowInr: number | null;
