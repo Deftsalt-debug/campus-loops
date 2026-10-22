@@ -20,7 +20,7 @@
     "data:osm": "tsx scripts/import-osm.ts"
   },
   "dependencies": {
-    "maplibre-gl": "6.11.2",
+    "maplibre-gl": "6.15.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
