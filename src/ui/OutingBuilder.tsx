@@ -2,6 +2,7 @@ import { memo, useEffect, useId, useRef, useState, type CSSProperties, type Keyb
 import { googleMapsPlaceUrl, googleMapsSearchUrl } from '../core/export/googleMaps'
 import { DEFAULT_CONFIG } from '../core/planner/config'
 import { OCCASION_IDS, OCCASIONS } from '../core/planner/occasions'
+import { googlePlaceIdOf } from '../core/livePlaces'
 import type { Dataset, Occasion, PlaceCategory } from '../core/types'
 import { CATEGORY_LABEL, findCampusPlaces, placeHoursNote, stopTimeError, toggleRequiredPlace, unconfirmedPlaceDetails, updateStopTime } from './campusPlaces'
 import { ripple, spotlight } from './effects'
@@ -34,13 +35,15 @@ interface Props {
   durationError: string | null
   budgetError: string | null
   previewError: string | null
+  /** Live Google Maps places can be added from the map. */
+  liveSearch?: boolean
 }
 
 /**
  * Step 1. The outing reads as a sentence; each underlined phrase opens a small
  * editor in the tray below. Results update live, so there is no submit step.
  */
-export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onChange, durationError, budgetError, previewError }: Props) {
+export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onChange, durationError, budgetError, previewError, liveSearch = false }: Props) {
   const [open, setOpen] = useState<Editor | null>(null)
   // The tray keeps showing its last editor while it collapses.
   const [shown, setShown] = useState<Editor>('occasion')
@@ -167,7 +170,7 @@ export const OutingBuilder = memo(function OutingBuilder({ dataset, state, onCha
                 onPick={(v, done) => { onChange({ budgetInr: v }); if (done) close() }}
               />
             )}
-            {shown === 'stops' && <StopsEditor dataset={dataset} state={state} onChange={onChange} />}
+            {shown === 'stops' && <StopsEditor dataset={dataset} state={state} onChange={onChange} liveSearch={liveSearch} />}
             {shown === 'options' && <OptionsEditor dataset={dataset} state={state} onChange={onChange} previewError={previewError} />}
           </section>
         </div>
@@ -252,7 +255,7 @@ function NumberChoice({ id, label, unit, choices, value, min, max, step, format,
   )
 }
 
-function StopsEditor({ dataset, state, onChange }: { dataset: Dataset; state: FormState; onChange: (patch: Partial<FormState>) => void }) {
+function StopsEditor({ dataset, state, onChange, liveSearch }: { dataset: Dataset; state: FormState; onChange: (patch: Partial<FormState>) => void; liveSearch: boolean }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<PlaceCategory | 'all'>('all')
   const matches = findCampusPlaces(dataset.places, query, category)
@@ -305,7 +308,7 @@ function StopsEditor({ dataset, state, onChange }: { dataset: Dataset; state: Fo
 
       <div className="places-heading">
         <b>Saved campus places</b>
-        <p className="hint">This catalogue is a saved snapshot. Check Google Maps for current venue listings.</p>
+        <p className="hint">{liveSearch ? 'Planner-ready places from the saved catalogue. For any other spot, search the map or tap it on the map and choose Add to walk.' : 'This catalogue is a saved snapshot. Check Google Maps for current venue listings.'}</p>
       </div>
       <div className="search-field">
         <Icon name="search" size={16} />
@@ -316,7 +319,7 @@ function StopsEditor({ dataset, state, onChange }: { dataset: Dataset; state: Fo
         <a className="btn ghost" href={googleMapsSearchUrl(mapsQuery)} target="_blank" rel="noopener noreferrer" aria-label={`Search Google Maps for ${mapsQuery}`}>
           Search Google Maps <Icon name="arrow" size={16} />
         </a>
-        <p className="hint">Discover more places there. Only saved campus places can be added to this walk.</p>
+        <p className="hint">{liveSearch ? 'Opens Google Maps in a new tab.' : 'Discover more places there. Only saved campus places can be added to this walk.'}</p>
       </div>
       <div className="row" role="group" aria-label="Filter campus places">
         {(['all', 'cafe', 'seating', 'landmark'] as const).map((c) => (
@@ -336,7 +339,7 @@ function StopsEditor({ dataset, state, onChange }: { dataset: Dataset; state: Fo
                   <small>{CATEGORY_LABEL[place.category]} · {place.spendLowInr === null || place.spendHighInr === null ? 'Price unconfirmed' : `${rupees(place.spendLowInr, place.spendHighInr)} (estimate)`}</small>
                   <small>{placeHoursNote(place)}</small>
                   <small>{unavailable ? `${unavailable}; unavailable for planning.` : place.tags.slice(0, 3).join(' · ')}</small>
-                  <a className="place-listing" href={googleMapsPlaceUrl(place.name)} target="_blank" rel="noopener noreferrer" aria-label={`Check hours & location for ${place.name} on Google Maps`}>
+                  <a className="place-listing" href={googleMapsPlaceUrl(place.name, googlePlaceIdOf(place.id))} target="_blank" rel="noopener noreferrer" aria-label={`Check hours & location for ${place.name} on Google Maps`}>
                     Check hours &amp; location <Icon name="arrow" size={14} />
                   </a>
                 </div>

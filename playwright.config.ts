@@ -5,6 +5,8 @@ const proxy = process.env.HTTPS_PROXY
 
 export default defineConfig({
   testDir: './tests/browser',
+  // The Google Maps suite needs its own build: playwright.google.config.ts.
+  testIgnore: 'google-maps.spec.ts',
   timeout: 90_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,

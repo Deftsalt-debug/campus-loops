@@ -1,5 +1,7 @@
+import type { GooglePriceLevel } from '../core/livePlaces'
 import type { Place, PlaceCategory } from '../core/types'
 import { DEFAULT_CONFIG } from '../core/planner/config'
+import { parseHHMM, toIst } from '../core/time/clock'
 
 export const CATEGORY_LABEL: Record<PlaceCategory, string> = {
   cafe: 'Food & coffee', seating: 'Places to sit', landmark: 'Landmarks', waypoint: 'Waypoints',
@@ -17,6 +19,13 @@ export function findCampusPlaces(places: Place[], query: string, category: Place
   })
 }
 
+/** The query names the place itself, rather than only matching its tags. */
+export function placeNameMatches(place: Place, query: string): boolean {
+  const words = normalise(query).split(' ').filter(Boolean)
+  const name = normalise(place.name)
+  return words.length > 0 && words.every((word) => name.includes(word))
+}
+
 export function unconfirmedPlaceDetails(place: Place): string | null {
   if (place.hoursStatus === 'unknown') return 'Hours unconfirmed'
   if (place.spendLowInr === null || place.spendHighInr === null) return 'Price unconfirmed'
@@ -32,7 +41,35 @@ export function placeHoursNote(place: Place): string {
       : 'Opening hours are estimates; check before visiting';
   }
   if (place.hoursSource === 'osm') return `Hours from saved OpenStreetMap data (${place.verifiedAt})`;
+  if (place.hoursSource === 'google') return place.hoursStatus === 'always' ? 'Open 24 hours on Google Maps' : 'Hours from Google Maps, fetched today';
   return `Hours recorded ${place.verifiedAt}; confirm today’s hours`;
+}
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const shownTime = (hhmm: string) => (hhmm === '23:59' ? 'midnight' : hhmm)
+
+/** "Open now · until 22:00" from live Google hours; null when hours are not live. */
+export function openingSummary(place: Place, now: Date): string | null {
+  if (place.hoursSource !== 'google') return null
+  if (place.hoursStatus === 'always') return 'Open 24 hours'
+  if (place.hoursStatus !== 'verified') return null
+  const { weekday, secondOfDay } = toIst(now)
+  const minute = Math.floor(secondOfDay / 60)
+  const on = (day: number) => place.verifiedOpenWindows.filter((w) => w.day === day).sort((a, b) => parseHHMM(a.start) - parseHHMM(b.start))
+  const open = on(weekday).find((w) => parseHHMM(w.start) <= minute && minute < parseHHMM(w.end))
+  if (open) return `Open now · until ${shownTime(open.end)}`
+  const later = on(weekday).find((w) => parseHHMM(w.start) > minute)
+  if (later) return `Closed now · opens ${later.start}`
+  for (let ahead = 1; ahead <= 7; ahead++) {
+    const next = on((weekday + ahead) % 7)[0]
+    if (next) return `Closed now · opens ${ahead === 1 ? 'tomorrow' : DAYS[(weekday + ahead) % 7]} ${next.start}`
+  }
+  return 'Closed all week'
+}
+
+export function priceLevelText(level: GooglePriceLevel | null | undefined): string | null {
+  if (!level) return null
+  return { FREE: 'Free', INEXPENSIVE: '₹', MODERATE: '₹₹', EXPENSIVE: '₹₹₹', VERY_EXPENSIVE: '₹₹₹₹' }[level] ?? null
 }
 
 /** Toggle a must-visit without losing another stop or creating a duplicate. */

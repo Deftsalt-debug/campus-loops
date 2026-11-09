@@ -41,6 +41,17 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Check real maps and browser flows twice before publication
         run: npm run test:browser -- --repeat-each=2
+      # Placeholder key and a stubbed Maps API: no Google requests or billing.
+      - name: Check the Google Maps integration
+        run: npm run test:browser:google
+      # Tests above use the free map. The published build adds the Google key
+      # when one is configured; the stubbed suite covers that code path.
+      - name: Build the release with Google Maps
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.VITE_GOOGLE_MAPS_API_KEY != ''
+        env:
+          VITE_GOOGLE_MAPS_API_KEY: ${{ vars.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_GOOGLE_MAPS_MAP_ID: ${{ vars.VITE_GOOGLE_MAPS_MAP_ID }}
+        run: npm run build
       - name: Keep browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

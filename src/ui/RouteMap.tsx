@@ -1,12 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type * as MapLibre from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
-import type { Dataset, Plan, PlaceCategory } from '../core/types'
+import type { LiveVenue } from '../core/livePlaces'
+import type { Dataset, Plan } from '../core/types'
 import { clock } from './format'
 import { useMediaQuery } from './hooks'
 import { Icon } from './icons'
 import { DEFAULT_VECTOR_STYLE, mapTileConfiguration } from './mapTiles'
 import { campusBounds, coordinateBounds, lngLat, mapRoutes, placeCoordinate, routeFeatures } from './mapGeometry'
+import { layoutPlaceLabels, placeMarkerElement, stopDescription, stopMarkerElement, stopPopupContent } from './mapMarkers'
 import './RouteMap.css'
 
 const tileConfig = mapTileConfiguration({
@@ -27,7 +29,7 @@ export interface StopFocus {
   /** Pan the map to it (an explicit "show on map"), rather than only highlighting. */
   reveal: boolean
 }
-interface Props {
+export interface RouteMapProps {
   dataset: Dataset
   plans: Plan[]
   selectedId: string | null
@@ -41,6 +43,10 @@ interface Props {
   selectedPlaceId?: string | null
   visiblePlaceIds?: string[]
   onSelectPlace?: (id: string) => void
+  /** Google Maps results to pin; only the Google map can show them. */
+  livePins?: LiveVenue[]
+  selectedLive?: LiveVenue | null
+  onSelectGooglePlace?: (placeId: string) => void
   onSelect: (id: string) => void
   onHover: (id: string | null) => void
   onFocusStop: (focus: StopFocus | null) => void
@@ -74,24 +80,8 @@ function mapStyle(): string | MapLibre.StyleSpecification {
   }
 }
 
-const categoryPaths: Record<PlaceCategory, string> = {
-  cafe: 'M5 4h12v8a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V4Zm12 1h2a3 3 0 0 1 0 6h-2M4 20h15',
-  seating: 'M4 12h16M6 12V7h12v5M5 12v7m14-7v7M3 16h18',
-  landmark: 'm3 8 9-5 9 5H3Zm2 3v8m7-8v8m7-8v8M3 21h18',
-  waypoint: 'M12 21s7-6 7-12A7 7 0 0 0 5 9c0 6 7 12 7 12ZM12 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',
-}
-function venueIcon(category: PlaceCategory) {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  svg.setAttribute('viewBox', '0 0 24 24')
-  svg.setAttribute('aria-hidden', 'true')
-  const path = document.createElementNS(svg.namespaceURI, 'path')
-  path.setAttribute('d', categoryPaths[category])
-  svg.append(path)
-  return svg
-}
-
 /** One native WebGL map, with remote streets/buildings and the planner's exact walking geometry. */
-export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focus, touchPan, refitKey = 0, campusKey = 0, selectedPlaceId = null, visiblePlaceIds, onSelectPlace, onSelect, onHover, onFocusStop }: Props) {
+export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focus, touchPan, refitKey = 0, campusKey = 0, selectedPlaceId = null, visiblePlaceIds, onSelectPlace, onSelect, onHover, onFocusStop }: RouteMapProps) {
   const el = useRef<HTMLDivElement>(null)
   const instructionsId = useId()
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
@@ -110,9 +100,14 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
   const callbacks = useRef({ onSelect, onHover, onFocusStop, onSelectPlace })
   const current = useRef({ selectedId, hoveredId, selectedPlaceId, reducedMotion })
   const geometries = useMemo(() => mapRoutes(dataset, plans), [dataset, plans])
+  // Live stops extend the places but never the graph or campus, so adding one
+  // must not rebuild the map: creation reads the dataset through a ref.
+  const datasetRef = useRef(dataset)
+  const datasetVersion = dataset.datasetVersion
   const routeFailed = geometries.some(({ geometry }) => !geometry)
 
   useEffect(() => { callbacks.current = { onSelect, onHover, onFocusStop, onSelectPlace } }, [onSelect, onHover, onFocusStop, onSelectPlace])
+  useEffect(() => { datasetRef.current = dataset }, [dataset])
   useEffect(() => { current.current = { selectedId, hoveredId, selectedPlaceId, reducedMotion } }, [selectedId, hoveredId, selectedPlaceId, reducedMotion])
 
   useEffect(() => {
@@ -130,6 +125,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
 
   useEffect(() => {
     if (!module || !el.current) return
+    const base = datasetRef.current
     let active = true
     let failed = false
     let fatal = false
@@ -152,7 +148,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
       const m = new module.Map({
         container: canvas,
         style: mapStyle(),
-        center: [dataset.location.lng, dataset.location.lat],
+        center: [base.location.lng, base.location.lat],
         zoom: Math.min(14.8, tileConfig.url ? tileConfig.maxZoom : 19),
         minZoom: Math.min(11, tileConfig.url ? tileConfig.maxZoom : 19),
         maxZoom: tileConfig.url ? tileConfig.maxZoom : 19,
@@ -210,7 +206,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
       })
       m.on('mouseout', () => callbacks.current.onHover(null))
       m.on('click', (event) => { const id = routeAt(event); if (id) callbacks.current.onSelect(id) })
-      m.fitBounds(campusBounds(dataset), { padding: fitPadding(m), maxZoom: 15.8, duration: 0 })
+      m.fitBounds(campusBounds(base), { padding: fitPadding(m), maxZoom: 15.8, duration: 0 })
       if (typeof ResizeObserver !== 'undefined') {
         observer = new ResizeObserver(onResize)
         observer.observe(canvas)
@@ -235,7 +231,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
       map.current = null
       fitKey.current = ''; sourceKey.current = ''; stopKey.current = ''; revealedFocus.current = null
     }
-  }, [module, dataset, retry, instructionsId])
+  }, [module, datasetVersion, retry, instructionsId])
 
   useEffect(() => {
     const m = map.current
@@ -264,20 +260,8 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
     stopKey.current = shown?.key ?? ''
     if (!shown?.geometry) return
     const addStop = (index: StopIndex, at: [number, number], label: string, passBy = false) => {
-      const element = document.createElement('button')
-      element.type = 'button'
-      element.className = 'map-stop-marker'
-      const pin = document.createElement('span')
-      pin.className = `map-stop-pin${index === 'start' ? ' is-start' : ''}${passBy ? ' is-pass' : ''}`
-      pin.textContent = label
-      pin.setAttribute('aria-hidden', 'true')
-      element.append(pin)
       const planId = shown.id
-      element.addEventListener('click', (event) => { event.stopPropagation(); callbacks.current.onSelect(planId); callbacks.current.onFocusStop({ planId, index, reveal: false }) })
-      element.addEventListener('focus', () => callbacks.current.onFocusStop({ planId, index, reveal: false }))
-      element.addEventListener('mouseenter', () => callbacks.current.onFocusStop({ planId, index, reveal: false }))
-      element.addEventListener('mouseleave', () => { if (document.activeElement !== element) callbacks.current.onFocusStop(null) })
-      element.addEventListener('blur', () => callbacks.current.onFocusStop(null))
+      const element = stopMarkerElement(planId, index, label, passBy, () => callbacks.current)
       const marker = new module.Marker({ element, anchor: 'center' }).setLngLat(lngLat(at)).addTo(m)
       stops.current.push({ marker, element, planId, index })
     }
@@ -296,17 +280,13 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
       const startName = dataset.starts.find((start) => start.nodeId === plan.startNodeId)?.name ?? 'Start'
       const when = visit && startSec !== null ? `${clock(startSec + visit.arriveOffsetSec)} · ` : ''
       const name = visit ? visit.name : `Start and finish: ${startName}`
-      const detail = visit ? `${when}${visit.dwellSec === 0 ? 'Pass by' : `${Math.round(visit.dwellSec / 60)} min stop`}` : ''
-      element.setAttribute('aria-label', `${name}${detail ? `, ${detail}` : ''}`)
-      element.setAttribute('title', `${name}${detail ? ` — ${detail}` : ''}`)
+      const { label, title, detail } = stopDescription(name, when, visit ? visit.dwellSec : null)
+      element.setAttribute('aria-label', label)
+      element.setAttribute('title', title)
       const focused = focus?.planId === planId && focus.index === index
       element.classList.toggle('is-focus', focused)
       if (focused) {
-        const content = document.createElement('div')
-        const title = document.createElement('strong')
-        title.textContent = name
-        content.append(title)
-        if (detail) { const text = document.createElement('span'); text.textContent = detail; content.append(text) }
+        const content = stopPopupContent(name, detail)
         popup.current ??= new module.Popup({ closeButton: false, closeOnClick: false, focusAfterOpen: false, offset: 24, className: 'walk-stop-popup', maxWidth: '240px' })
         popup.current.setLngLat(marker.getLngLat()).setDOMContent(content).addTo(m)
         if (focus.reveal && revealedFocus.current !== focus) m.easeTo({ center: marker.getLngLat(), offset: [0, 15], duration: reducedMotion ? 0 : 450 })
@@ -322,19 +302,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
     for (const place of dataset.places) {
       const at = placeCoordinate(dataset, place)
       if (!at) continue
-      const element = document.createElement('button')
-      element.type = 'button'
-      element.className = `map-place-marker is-${place.category}`
-      element.setAttribute('aria-label', `${place.name}, ${place.category === 'cafe' ? 'food and drink' : place.category}. Show venue details.`)
-      element.title = place.name
-      const icon = document.createElement('span')
-      icon.className = 'map-place-icon'
-      icon.append(venueIcon(place.category))
-      const label = document.createElement('span')
-      label.className = 'map-place-name'
-      label.textContent = place.name.replace(' (outside)', '')
-      element.append(icon, label)
-      element.addEventListener('click', (event) => { event.stopPropagation(); callbacks.current.onSelectPlace?.(place.id) })
+      const { element, label } = placeMarkerElement(place.name, place.category, () => callbacks.current.onSelectPlace?.(place.id))
       const marker = new module.Marker({ element, anchor: 'center' }).setLngLat(lngLat(at)).addTo(m)
       venues.current.push({ marker, element, label, id: place.id })
     }
@@ -350,21 +318,7 @@ export function RouteMap({ dataset, plans, selectedId, hoveredId, startSec, focu
       venue.element.classList.toggle('is-selected', venue.id === selectedPlaceId)
       venue.element.setAttribute('aria-pressed', String(venue.id === selectedPlaceId))
     }
-    const layoutLabels = () => {
-      const boxes: [number, number, number, number][] = []
-      const ordered = [...venues.current].sort((a, b) => Number(b.id === selectedPlaceId) - Number(a.id === selectedPlaceId))
-      for (const venue of ordered) {
-        if (venue.element.hidden) continue
-        const selected = venue.id === selectedPlaceId
-        const { x, y } = m.project(venue.marker.getLngLat())
-        const width = Math.min(150, (venue.label.textContent?.length ?? 0) * 6.5 + 8)
-        const box: [number, number, number, number] = [x + 16, y - 13, x + 16 + width, y + 13]
-        const collision = boxes.some(([left, top, right, bottom]) => box[0] < right && box[2] > left && box[1] < bottom && box[3] > top)
-        const hide = !selected && (m.getZoom() < 14.8 || collision)
-        venue.element.classList.toggle('is-label-hidden', hide)
-        if (!hide) boxes.push(box)
-      }
-    }
+    const layoutLabels = () => layoutPlaceLabels(venues.current, selectedPlaceId, m.getZoom(), 14.8, (venue) => m.project(venue.marker.getLngLat()))
     layoutLabels()
     m.on('moveend', layoutLabels)
     return () => { m.off('moveend', layoutLabels) }

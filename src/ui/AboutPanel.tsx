@@ -10,10 +10,12 @@ interface Props {
   logCount: number
   onLogsChanged: () => void
   notify: (message: string) => void
+  /** Google Maps and live venue details are active on this site. */
+  liveMaps?: boolean
 }
 
 /** Data provenance, privacy, and the calibration log: everything the walk itself does not need. */
-export function AboutPanel({ dataset, logCount, onLogsChanged, notify }: Props) {
+export function AboutPanel({ dataset, logCount, onLogsChanged, notify, liveMaps = false }: Props) {
   const { status, logs } = readLogs()
   const exportLogs = () => {
     const { status: currentStatus, logs: readable } = readLogs()
@@ -42,14 +44,22 @@ export function AboutPanel({ dataset, logCount, onLogsChanged, notify }: Props) 
       <section>
         <h3>Current venues and hours</h3>
         <p className="hint">Open a venue’s Google Maps link to check its current listing and entrance. Venue pins show source-mapped locations; walking routes connect to nearby paths. Listings can change or be incomplete.</p>
-        <p className="hint">The street map comes from OpenFreeMap, which rebuilds its OpenStreetMap-derived basemap weekly. It does not refresh this app’s saved venue catalogue or route data.</p>
-        <p className="hint">This app calculates estimates from saved campus data. It does not fetch live opening hours, prices, closures or walking times. Reopening a walk recalculates the plan without refreshing that data. Google Maps chooses its own walking route; KML and GPX exports keep this app’s saved route.</p>
+        {liveMaps ? <>
+          <p className="hint">The map is Google Maps, with Google’s current businesses and landmarks. Search, category chips and tapping a venue on the map load its current Google listing: opening hours, price level and rating. Those details are fetched when you open a venue and kept only until you leave the page.</p>
+          <p className="hint">A Google venue can join a walk when it is within 150 m of the saved campus paths. Walking times still come from this app’s saved route data, not live directions, and closures, entrances and prices can differ from Google’s listing. Google Maps chooses its own walking route; KML and GPX exports keep this app’s saved route.</p>
+        </> : <>
+          <p className="hint">The street map comes from OpenFreeMap, which rebuilds its OpenStreetMap-derived basemap weekly. It does not refresh this app’s saved venue catalogue or route data.</p>
+          <p className="hint">This app calculates estimates from saved campus data. It does not fetch live opening hours, prices, closures or walking times. Reopening a walk recalculates the plan without refreshing that data. Google Maps chooses its own walking route; KML and GPX exports keep this app’s saved route.</p>
+        </>}
       </section>
 
       <section>
         <h3>Privacy</h3>
         <p className="hint">
-          OpenFreeMap supplies the street map and sees your IP address and requests for the map area you view, styles, fonts and icons. If this site configures another tile provider, that provider receives the corresponding map requests. Google receives your search or route when you open a Google Maps link. Shared links contain the
+          {liveMaps
+            ? 'Google supplies the map and live venue details, and receives your IP address, the map area you view, what you type in map search and the venues you open. '
+            : 'OpenFreeMap supplies the street map and sees your IP address and requests for the map area you view, styles, fonts and icons. If this site configures another tile provider, that provider receives the corresponding map requests. '}
+          Google receives your search or route when you open a Google Maps link. Shared links contain the
           start point, route and preferences. Saved walks, field notes and calibration logs stay on this device unless you export them. No accounts or analytics.
         </p>
       </section>

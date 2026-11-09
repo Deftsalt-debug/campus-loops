@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { planToGpx, planToIcs, planToKml, planToText } from '../core/export/files'
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl } from '../core/export/googleMaps'
+import { googlePlaceIdOf } from '../core/livePlaces'
 import { planGeometry } from '../core/geo'
 import type { Dataset, Plan } from '../core/types'
 import { getLogStorageStatus, saveLog } from '../storage/calibrationLog'
@@ -28,10 +29,14 @@ interface Props {
   onLogged: () => void
   onSave: () => void
   saved: boolean
+  /** Start the live walk companion for this plan. */
+  onWalk: () => void
+  /** True while this plan is the walk in progress. */
+  walking: boolean
 }
 
 /** Step 3. The chosen walk as a timeline you can trace on the map, then ways to take it with you. */
-export const WalkDetail = memo(function WalkDetail({ plan, index, count, dataset, startSec, startAt, pace, shareUrl, focus, followMap, onFocusStop, notify, onLogged, onSave, saved }: Props) {
+export const WalkDetail = memo(function WalkDetail({ plan, index, count, dataset, startSec, startAt, pace, shareUrl, focus, followMap, onFocusStop, notify, onLogged, onSave, saved, onWalk, walking }: Props) {
   const startName = dataset.starts.find((s) => s.nodeId === plan.startNodeId)?.name ?? 'Start'
   const route = useMemo(() => planGeometry(dataset, plan), [dataset, plan])
   const google = useMemo(() => googleMapsDirectionsUrl(route), [route])
@@ -149,7 +154,7 @@ export const WalkDetail = memo(function WalkDetail({ plan, index, count, dataset
               {v.dwellSec > 0 ? `${mins(v.dwellSec)} stop` : 'no stop'}
               {v.dwellSec > 0 ? ` · ${rupees(v.spendLowInr, v.spendHighInr)} each (estimate)` : ''}
             </small>
-            <a className="stop-listing" href={googleMapsPlaceUrl(v.name)} target="_blank" rel="noopener noreferrer" aria-label={`Check hours & location for ${v.name} on Google Maps`}>
+            <a className="stop-listing" href={googleMapsPlaceUrl(v.name, googlePlaceIdOf(v.placeId))} target="_blank" rel="noopener noreferrer" aria-label={`Check hours & location for ${v.name} on Google Maps`}>
               Check hours &amp; location <Icon name="arrow" size={14} />
             </a>
           </>,
@@ -171,6 +176,9 @@ export const WalkDetail = memo(function WalkDetail({ plan, index, count, dataset
         <a className="btn primary go-main" href={google.url} target="_blank" rel="noopener noreferrer" onPointerDown={ripple}>
           Start in Google Maps <Icon name="arrow" size={18} className="go-arrow" />
         </a>
+        <button type="button" className="btn go-live" onPointerDown={ripple} onClick={onWalk} disabled={walking}>
+          <Icon name="clock" size={17} />{walking ? 'Walk in progress' : 'Walk it now with a live timer'}
+        </button>
         <div className="go-row">
           <button ref={shareButton} type="button" className="btn" onPointerDown={ripple} onClick={share}><Icon name="share" size={17} />Share</button>
           <button type="button" className={`btn${saved ? ' is-saved' : ''}`} onPointerDown={ripple} onClick={onSave} disabled={saved}>

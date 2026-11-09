@@ -162,6 +162,8 @@ export function toPlan(
   if (placeholderHours.length) warnings.push(`Opening hours are placeholders, not checked: ${placeholderHours.map((v) => v.place.name).join(', ')}.`);
   const osmHours = it.visits.filter((v) => v.place.hoursSource === 'osm' && v.place.hoursStatus === 'verified');
   if (osmHours.length) warnings.push(`Hours from OpenStreetMap, not checked in person: ${osmHours.map((v) => v.place.name).join(', ')}.`);
+  const googleDetails = it.visits.filter((v) => v.dwellSec > 0 && (v.place.hoursSource === 'google' || v.place.spendSource === 'google'));
+  if (googleDetails.length) warnings.push(`Hours and price level from Google Maps today; confirm before you go: ${googleDetails.map((v) => v.place.name).join(', ')}.`);
   const checkedDates = [...it.edges.map((e) => e.verifiedAt), ...it.visits.map((v) => v.place.verifiedAt)].sort();
   const dataCheckedOn = checkedDates[0] ?? '';
   if (dataCheckedOn && opts.now.getTime() - Date.parse(dataCheckedOn) > opts.staleAfterDays * DAY_MS) {

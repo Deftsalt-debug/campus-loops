@@ -1,6 +1,6 @@
 # Campus Loops: project manifest
 
-This is the project guide: what was built, how to run it, how it works, what to trust, and what to do next. Updated **2 October 2026**; dated earlier QA checkpoints remain historical evidence.
+This is the project guide: what was built, how to run it, how it works, what to trust, and what to do next. Updated **3 October 2026**; dated earlier QA checkpoints remain historical evidence.
 
 - **Repository:** https://github.com/Deftsalt-debug/campus-loops
 - **Live site:** https://deftsalt-debug.github.io/campus-loops/ (redeploys automatically on every push to `main`)
@@ -14,7 +14,8 @@ This is the project guide: what was built, how to run it, how it works, what to 
 |---|---|
 | Routing core (heap, Dijkstra, costs, sunset) | ✅ Built and tested |
 | Planner (8 occasion modes, limits, ranking, diversity, explanations) | ✅ Built and tested |
-| Interface (form, plan cards, Leaflet map, phone and laptop layouts, light/dark, interactive backdrop) | ✅ Built and QA'd in the browser |
+| Interface (sentence builder, walk cards, street map, phone and laptop layouts, light/dark, interactive backdrop) | ✅ Built and QA'd in the browser |
+| Google Maps with live venues (optional key) | ✅ Built; QA'd against a stubbed Maps API. Needs a real key for a final live check |
 | Google Maps hand-off (directions link, KML for My Maps, GPX) | ✅ Built; link checked live in Google Maps |
 | Share links that re-check the exact route | ✅ Built and tested |
 | Calibration log ("how long did it really take") | ✅ Built (stays on the device) |
@@ -86,7 +87,7 @@ Other commands:
 | **KML for Google My Maps** | Download the KML, go to https://www.google.com/mymaps → *Create a new map* → *Import* → pick the file. | Exact line, stop pins and descriptions. It then shows up in the Google Maps app under **Saved → Maps**. |
 | **GPX** | For other apps (Organic Maps, Strava, Komoot…). | Exact line. |
 
-**Why no Google map embedded in the app?** Google's map SDK needs a Google Cloud API key with billing. The in-app map is Leaflet + OpenStreetMap, which is free and draws our exact route. If you later want a Google basemap, get a Maps JavaScript API key, restrict it to your domain, and swap the map component. Keep the planner untouched.
+**Google map inside the app.** Set `VITE_GOOGLE_MAPS_API_KEY` and the in-app map becomes Google Maps, with Google's current venues. Search, category chips and tapping a business load its live listing; **Add to walk** turns any Google place within 150 m of the saved paths into a planner stop with Google's hours and price level (`src/core/livePlaces.ts`). Without a key, or if Google rejects it, the free MapLibre + OpenFreeMap map is used. Setup, costs and free-tier guard rails are in the README (*Google Maps on the free tier*). The planner and routing graph are unchanged: live places are attached to the nearest walkable path node at runtime and never saved into the dataset.
 
 ---
 
@@ -146,13 +147,15 @@ src/core/            framework-free logic (lint blocks React imports here)
   export/            googleMaps.ts, files.ts (KML, GPX, text)
   dataset/           validate.ts, load.ts
   geo.ts, share.ts, identifiers.ts, calibration.ts, types.ts
-src/ui/              OutingBuilder (sentence + tray), WalkChooser, WalkDetail, MapDock + RouteMap (Leaflet),
+  livePlaces.ts      Google venue → planner place (category, tags, hours, price, path anchor)
+src/ui/              OutingBuilder (sentence + tray), WalkChooser, WalkDetail, MapDock + RouteMap (MapLibre),
                      Drawer, AboutPanel, SavedWalks, FieldNotebook, PlanComparison, Backdrop, effects, format
+  google/            GoogleRouteMap, loader, live Places service with limits, useGoogle, useLiveStops
 src/storage/         calibrationLog.ts, savedPlans.ts, fieldNotes.ts (localStorage, fail safely)
 src/data/            manipal-demo.json, fixtures/pilot-fixture.json
 scripts/             import-osm.ts, osm-rules.ts, validate-data.ts, export-geojson.ts, build-fixture.ts
 data/osm/            raw OSM snapshot, provenance + elevation cache (ODbL)
-tests/               24 files; see RELEASE.md for the latest QA checkpoint
+tests/               28 unit files + browser/ (real-map and stubbed Google Maps suites); see RELEASE.md
 .github/workflows/   deploy.yml (verify → build → GitHub Pages)
 ROADMAP.md           product plan, decisions, weekly checklists
 ```
@@ -200,7 +203,7 @@ Browser QA: the loop route line starts and ends on the start pin and passes thro
 
 ## 10. Privacy, licences, obligations
 
-- **No accounts, analytics or tracking.** Planning runs in the browser. The OSM tile server sees visitors' IP addresses and the map areas they view. Google sees route points when someone opens a Google Maps link. Share links aren't secret.
+- **No accounts, analytics or tracking.** Planning runs in the browser. The map provider (Google when configured, otherwise OpenFreeMap) sees visitors' IP addresses and the map areas they view; with Google, map searches and opened venues go to Google too. Google sees route points when someone opens a Google Maps link. Share links aren't secret.
 - **OpenStreetMap data is ODbL.** The demo dataset and `data/osm/` are derived databases: keep the attribution (it's in the footer, README, KML and GPX) and share any changes to the data under the ODbL.
 - **OSM tile server:** fine for a small pilot, but its [usage policy](https://operations.osmfoundation.org/policies/tiles/) forbids heavy use. Switch providers (e.g. MapTiler, Stadia, or self-hosted) before wider launch: set the `VITE_MAP_TILE_*` build variables described in the README.
 - **Code licence:** none chosen yet, so it's all rights reserved by default. If you want others to reuse it, add a `LICENSE` (MIT is common for student projects).

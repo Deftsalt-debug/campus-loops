@@ -56,8 +56,8 @@ export function datasetShapeIssues(value: unknown): Issue[] {
       category: oneOf(['cafe', 'seating', 'landmark', 'waypoint']),
       dwellDefaultMin: number, spendLowInr: nullableNumber, spendHighInr: nullableNumber, tags: strings,
       hoursStatus: oneOf(['verified', 'always', 'unknown']),
-      hoursSource: optional(oneOf(['survey', 'osm', 'placeholder'])),
-      spendSource: optional(oneOf(['survey', 'osm', 'placeholder'])), verifiedAt: string, source: string,
+      hoursSource: optional(oneOf(['survey', 'osm', 'google', 'placeholder'])),
+      spendSource: optional(oneOf(['survey', 'osm', 'google', 'placeholder'])), verifiedAt: string, source: string,
     });
     if (!Array.isArray(item.verifiedOpenWindows)) error(`${path}.verifiedOpenWindows`);
     else item.verifiedOpenWindows.forEach((window, index) => {

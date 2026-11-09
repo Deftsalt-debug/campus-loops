@@ -1,10 +1,11 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { DatasetError, loadDataset } from './core/dataset/load'
 import { googleMapsSearchUrl } from './core/export/googleMaps'
+import { isLivePlaceId, liveIdsIn, type LiveVenue } from './core/livePlaces'
 import { plan, rebuildPlan } from './core/planner/plan'
 import { decodeShare, encodeShare } from './core/share'
 import { toIst } from './core/time/clock'
-import type { Dataset, PlanResult } from './core/types'
+import type { Dataset, Place, PlanResult } from './core/types'
 import { listLogs } from './storage/calibrationLog'
 import { listSavedPlans, removeSavedPlan, savePlan } from './storage/savedPlans'
 import { AboutPanel } from './ui/AboutPanel'
@@ -13,6 +14,8 @@ import { Drawer, type DrawerTab } from './ui/Drawer'
 import { ripple } from './ui/effects'
 import { FieldNotebook } from './ui/FieldNotebook'
 import { fromIstInput, istInputValue } from './ui/format'
+import { useGoogle } from './ui/google/useGoogle'
+import { useLiveStops } from './ui/google/useLiveStops'
 import { useMediaQuery } from './ui/hooks'
 import { Icon, LoopMark } from './ui/icons'
 import { MapDock } from './ui/MapDock'
@@ -23,7 +26,9 @@ import { initialForm, sharedForm, toRequest, type FormState } from './ui/plannin
 import type { StopFocus } from './ui/RouteMap'
 import { SavedWalks } from './ui/SavedWalks'
 import { WalkChooser } from './ui/WalkChooser'
+import { WalkCompanion } from './ui/WalkCompanion'
 import { WalkDetail } from './ui/WalkDetail'
+import { useWalkSession } from './ui/walkSession'
 
 const DATASETS = {
   demo: () => import('./data/manipal-demo.json'),
@@ -58,10 +63,14 @@ function useNow(intervalMs: number): Date {
   return now
 }
 
+/** Places named by a generated plan ID such as "g:a.b"; curated walks name none. */
+const planStops = (planId: string | undefined) =>
+  planId && (planId.startsWith('g:') || planId.startsWith('l:')) ? planId.slice(2).split('.') : []
+
 const smooth = (): ScrollBehavior => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth')
 
 export default function App() {
-  const [dataset, setDataset] = useState<Dataset | null>(null)
+  const [baseDataset, setDataset] = useState<Dataset | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [form, setForm] = useState<FormState | null>(null)
   const [shared, setShared] = useState<{ planId: string; note: string | null; blocked?: boolean } | null>(null)
@@ -71,6 +80,7 @@ export default function App() {
   const [compareOpen, setCompareOpen] = useState(false)
   const [drawer, setDrawer] = useState<DrawerTab | null>(null)
   const [toast, setToast] = useState<{ text: string; id: number; on: boolean } | null>(null)
+  const walk = useWalkSession()
   const [savedBump, setSavedBump] = useState(0)
   const [logCount, setLogCount] = useState(() => listLogs().length)
   const [savedPlans, setSavedPlans] = useState(listSavedPlans)
@@ -78,6 +88,7 @@ export default function App() {
   const realNow = useNow(30_000)
   // The panel and map sit side by side from this width; below it they stack.
   const wide = useMediaQuery('(min-width: 960px)')
+  const google = useGoogle(baseDataset)
 
   const applyLink = useCallback((ds: Dataset, hash: string) => {
     const decoded = decodeShare(hash)
@@ -115,11 +126,11 @@ export default function App() {
   }, [applyLink])
 
   useEffect(() => {
-    if (!dataset) return
-    const onHash = () => applyLink(dataset, window.location.hash)
+    if (!baseDataset) return
+    const onHash = () => applyLink(baseDataset, window.location.hash)
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
-  }, [dataset, applyLink])
+  }, [baseDataset, applyLink])
 
   useEffect(() => {
     const refresh = () => { setSavedPlans(listSavedPlans()); setLogCount(listLogs().length) }
@@ -145,6 +156,17 @@ export default function App() {
   // ---- Plan (deferred so typing and tapping stay instant) ----
   const deferredForm = useDeferredValue(form)
   const pending = form !== deferredForm
+
+  // Google Maps places a walk relies on load first; both the current and the
+  // deferred form count, so a stop is never missing while planning catches up.
+  const neededLive = useMemo(() => liveIdsIn([
+    ...(form?.required ?? []), ...Object.keys(form?.dwellOverridesMin ?? {}),
+    ...(deferredForm?.required ?? []), ...Object.keys(deferredForm?.dwellOverridesMin ?? {}),
+    ...planStops(shared?.planId),
+  ]), [form, deferredForm, shared])
+  const live = useLiveStops(baseDataset, google, neededLive)
+  const dataset = live.dataset
+  const liveBlocked = live.loading || live.errors.length > 0
   // Stable unless the preview time or the 30-second clock changes, so hovering doesn't re-plan.
   const previewAt = deferredForm?.previewAt ?? ''
   const previewNow = useMemo(() => previewAt ? fromIstInput(previewAt) : null, [previewAt])
@@ -158,11 +180,11 @@ export default function App() {
   const result: PlanResult | null = useMemo(() => {
     if (!dataset || !deferredForm || !(deferredForm.durationMin >= 30 && deferredForm.durationMin <= 90)) return null
     if (!Number.isFinite(deferredForm.budgetInr) || deferredForm.budgetInr < 0 || deferredForm.budgetInr > 100000 || (deferredForm.previewAt && !fromIstInput(deferredForm.previewAt))) return null
-    if (shared?.blocked) return null
+    if (shared?.blocked || liveBlocked) return null
     const request = toRequest(deferredForm)
     return shared?.planId ? rebuildPlan(dataset, request, now, shared.planId) : plan(dataset, request, now)
     // `now` changes every 30 s; planning is fast enough to simply re-run.
-  }, [dataset, deferredForm, shared, now])
+  }, [dataset, deferredForm, shared, now, liveBlocked])
 
   const plans = useMemo(() => result?.plans ?? [], [result])
   // The card a person taps answers immediately; the map and itinerary follow in
@@ -217,6 +239,23 @@ export default function App() {
   }, [selectedName, shareHash, notify])
   const refreshLogs = useCallback(() => setLogCount(listLogs().length), [])
 
+  const { register: registerLive, retry: retryLive } = live
+  const addLivePlace = useCallback((venue: LiveVenue, place: Place) => {
+    registerLive(venue, place)
+    setForm((f) => (f ? { ...f, required: toggleRequiredPlace(f.required, place.id) } : f))
+    setShared(null)
+  }, [registerLive])
+  /** Plan without Google places that could not be loaded, keeping every other choice. */
+  const dropLive = (ids: string[]) => {
+    const gone = new Set(ids)
+    const keep = (id: string) => !gone.has(id)
+    update({
+      required: form ? form.required.map((id) => (keep(id) ? id : '')) as [string, string] : ['', ''],
+      dwellOverridesMin: form?.dwellOverridesMin && Object.keys(form.dwellOverridesMin).some((id) => !keep(id))
+        ? Object.fromEntries(Object.entries(form.dwellOverridesMin).filter(([id]) => keep(id))) : form?.dwellOverridesMin,
+    })
+  }
+
   const removeSaved = (hash: string) => {
     const ok = removeSavedPlan(hash)
     notify(ok ? 'Saved walk removed' : 'The saved walk could not be removed. Open Saved walks for storage or repair details.')
@@ -269,13 +308,15 @@ export default function App() {
             </nav>
           </header>
 
+          {walk.session && <WalkCompanion key={walk.session.startedAtMs} session={walk.session} onChange={walk.update} onFocusStop={onFocusStop} />}
+
           <section className="step step-1" aria-labelledby="step-1">
             <p className="tagline">A little time. A good walk.</p>
             <p className="hint">Plan with saved campus routes and estimated times.{' '}
               <a href={googleMapsSearchUrl('places near MIT Manipal, Karnataka, India')} target="_blank" rel="noopener noreferrer">Check current places on Google Maps</a>.
             </p>
             <h2 className="step-label" id="step-1"><span className="step-num" aria-hidden="true">1</span>Your outing</h2>
-            <OutingBuilder dataset={dataset} state={form} onChange={update} durationError={durationError} budgetError={budgetError} previewError={previewError} />
+            <OutingBuilder dataset={dataset} state={form} onChange={update} durationError={durationError} budgetError={budgetError} previewError={previewError} liveSearch={google.status === 'ready'} />
           </section>
 
           <MapDock
@@ -294,6 +335,9 @@ export default function App() {
             onFocusStop={onFocusStop}
             requiredPlaceIds={form.required}
             onTogglePlace={(id) => update({ required: toggleRequiredPlace(form.required, id) })}
+            google={google}
+            onAddLivePlace={addLivePlace}
+            now={now}
           />
 
           <section id="outings" tabIndex={-1} className="step step-2" aria-labelledby="step-2" aria-busy={pending}>
@@ -316,7 +360,18 @@ export default function App() {
             )}
 
             {shared?.note && <div className="notice"><p>{shared.note}</p>{shared.blocked && <button type="button" className="btn" onClick={() => { setShared(null); setForm(initialForm(dataset)) }}>Plan again</button>}</div>}
-            {shared?.planId && plans.length > 0 && <p className="notice soft"><span>Shared plan recalculated against saved route data and your departure time. Venue details have not been refreshed.</span></p>}
+            {shared?.planId && plans.length > 0 && <p className="notice soft"><span>{plans.some((p) => p.visits.some((v) => isLivePlaceId(v.placeId)))
+              ? 'Shared plan recalculated against saved route data, current Google Maps details and your departure time.'
+              : 'Shared plan recalculated against saved route data and your departure time. Venue details have not been refreshed.'}</span></p>}
+            {live.errors.length > 0 && (
+              <div className="notice danger" role="alert">
+                <p>{live.errors[0].message}{live.errors.length > 1 ? ` (${live.errors.length} places)` : ''}</p>
+                <div className="row">
+                  {google.status === 'ready' && <button type="button" className="btn" onClick={retryLive}>Try again</button>}
+                  <button type="button" className="btn primary" onClick={() => dropLive(live.errors.map((error) => error.id))}>Plan without {live.errors.length > 1 ? 'them' : 'it'}</button>
+                </div>
+              </div>
+            )}
 
             {blocker && (
               <div className={`notice ${blocker.code === 'PLAN_OUTDATED' ? '' : 'danger'}`} role="alert">
@@ -339,9 +394,9 @@ export default function App() {
               </div>
             )}
 
-            {plans.length === 0 && !blocker && !shared?.note && (
+            {plans.length === 0 && !blocker && !shared?.note && live.errors.length === 0 && (
               <p className="empty-state">
-                {durationError || budgetError || previewError ? 'Fix the highlighted choice above to see walks.' : 'Finding walks…'}
+                {durationError || budgetError || previewError ? 'Fix the highlighted choice above to see walks.' : live.loading ? 'Loading Google Maps place details…' : 'Finding walks…'}
               </p>
             )}
 
@@ -374,6 +429,12 @@ export default function App() {
                 onLogged={refreshLogs}
                 onSave={saveCurrent}
                 saved={savedPlans.some((s) => s.hash === shareHash)}
+                walking={walk.session?.plan.id === selected.id && walk.session.finishedAtMs === undefined}
+                onWalk={() => {
+                  // The live timer runs on the real clock, so a previewed departure cannot be walked.
+                  if (previewNow) notify('That is a preview time. Choose “Plan from now” to walk it live.')
+                  else walk.start(selected, dataset.starts.find((s) => s.nodeId === selected.startNodeId)?.name ?? startName)
+                }}
               />
             </section>
           )}
@@ -401,8 +462,8 @@ export default function App() {
                 onRemove={removeSaved} onImported={() => setSavedPlans(listSavedPlans())} notify={notify} />
             ),
           },
-          notes: { label: 'Notebook', render: () => <FieldNotebook dataset={dataset} notify={notify} /> },
-          about: { label: 'About', render: () => <AboutPanel dataset={dataset} logCount={logCount} onLogsChanged={refreshLogs} notify={notify} /> },
+          notes: { label: 'Notebook', render: () => <FieldNotebook dataset={baseDataset ?? dataset} notify={notify} /> },
+          about: { label: 'About', render: () => <AboutPanel dataset={baseDataset ?? dataset} logCount={logCount} onLogsChanged={refreshLogs} notify={notify} liveMaps={google.status === 'ready'} /> },
         }}
       />
       <div className={`toast${toast?.on ? ' is-on' : ''}`} role="status" aria-live="polite">

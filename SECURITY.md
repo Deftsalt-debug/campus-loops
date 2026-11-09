@@ -1,6 +1,6 @@
 # Security
 
-Campus Loops is a static browser application. There is no server, account system, or route database receiving visitor input. Saved plans and calibration logs stay in browser storage; map tiles and Google Maps links involve the third parties described in the README.
+Campus Loops is a static browser application. There is no server, account system, or route database receiving visitor input. Saved plans and calibration logs stay in browser storage; map tiles, the optional Google map with live venue details, and Google Maps links involve the third parties described in the README. A configured `VITE_GOOGLE_MAPS_API_KEY` is a public browser key by design: keep it restricted to this site's addresses and to the Maps JavaScript API and Places API (New), and never place server keys or secrets in `VITE_*` variables.
 
 ## Reporting an issue
 

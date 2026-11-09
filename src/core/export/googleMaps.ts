@@ -24,10 +24,14 @@ export function googleMapsSearchUrl(query: string): string {
   return `https://www.google.com/maps/search/?${params.toString()}`;
 }
 
-/** Search for the venue itself, rather than its approximate walking-path anchor. */
-export function googleMapsPlaceUrl(name: string): string {
+/**
+ * Search for the venue itself, rather than its approximate walking-path anchor.
+ * With a Google place ID the link opens that exact listing.
+ */
+export function googleMapsPlaceUrl(name: string, googlePlaceId?: string | null): string {
   const venue = Array.from(name.trim().replace(/\s*\((?:outside|exterior)\)$/i, '').trim()).slice(0, 100).join('');
-  return googleMapsSearchUrl(venue ? `${venue}, Manipal, Karnataka, India` : 'MIT Manipal, Karnataka, India');
+  const url = googleMapsSearchUrl(venue ? `${venue}, Manipal, Karnataka, India` : 'MIT Manipal, Karnataka, India');
+  return googlePlaceId && /^[A-Za-z0-9_-]{1,200}$/.test(googlePlaceId) ? `${url}&query_place_id=${googlePlaceId}` : url;
 }
 
 export interface GoogleMapsLink {

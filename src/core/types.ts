@@ -67,7 +67,8 @@ export interface Place {
   /**
    * Where hours and prices came from. Anything other than 'survey' produces a
    * plan warning, and production validation rejects 'placeholder'.
-   * Missing means 'survey'.
+   * 'google' marks live Google Maps details fetched this session; such places
+   * are added at runtime and never saved in a dataset file. Missing means 'survey'.
    */
   hoursSource?: DataSource;
   spendSource?: DataSource;
@@ -75,7 +76,7 @@ export interface Place {
   source: string;
 }
 
-export type DataSource = 'survey' | 'osm' | 'placeholder';
+export type DataSource = 'survey' | 'osm' | 'google' | 'placeholder';
 
 export interface CuratedStop {
   placeId: string;

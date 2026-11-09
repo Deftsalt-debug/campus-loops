@@ -131,7 +131,9 @@ h1, h2, h3 { margin: 0; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .brand h1 { font-size: 1.3rem; letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
-.brand .eyebrow { white-space: nowrap; }
+/* The name block shrinks before the actions do, so the eyebrow never runs under the Demo pill. */
+.brand > div { min-width: 0; }
+.brand .eyebrow { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .logo {
   width: 40px; height: 40px; flex: none; border-radius: 12px;
   display: grid; place-items: center;
@@ -141,7 +143,7 @@ h1, h2, h3 { margin: 0; }
 }
 .brand:hover .logo { transform: rotate(-8deg) scale(1.04); }
 .loop-mark path { stroke-dasharray: 1; animation: draw 1.1s var(--ease-out) 200ms both; }
-.topbar-actions { display: flex; align-items: center; gap: 4px; }
+.topbar-actions { display: flex; flex: none; align-items: center; gap: 4px; }
 .icon-btn {
   position: relative;
   width: 42px; height: 42px;
@@ -413,6 +415,11 @@ details.more[open] .more-body { animation: rise var(--t2) var(--ease-out); }
     transition-duration: 1ms !important;
     transition-delay: 0ms !important;
   }
+}
+
+/* Side-by-side layout with the panel at or near its 430px minimum. */
+@media (min-width: 960px) and (max-width: 1320px) {
+  .demo-pill .demo-word { display: none; }
 }
 
 @media (max-width: 480px) {

@@ -51,3 +51,19 @@
 .map-load-error p { margin: 6px 0 10px; }
 @media (prefers-reduced-motion: reduce) { .map-place-icon, .map-stop-pin { transition: none; } }
 @media (prefers-color-scheme: dark) { .vector-map-shell .maplibregl-ctrl-icon { filter: invert(1); } }
+
+/* Google Maps: provider controls and info windows match the free map's look. */
+.google-map-shell .map { background: #e8eaed; }
+.google-map-shell .map:focus-visible, .google-map-shell .gm-style iframe + div:focus-visible { outline: 3px solid var(--accent); outline-offset: -4px; }
+.google-map-shell .gm-style { font: inherit; }
+.google-map-shell .gm-style .gm-style-iw-c { padding: 9px 12px !important; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-solid); color: var(--fg); box-shadow: var(--shadow); }
+.google-map-shell .gm-style .gm-style-iw-d { overflow: visible !important; padding: 0 !important; }
+.google-map-shell .gm-style .gm-style-iw-tc::after { background: var(--surface-solid); }
+.google-map-shell .gm-style-iw-d > div { display: grid; gap: 3px; font-size: .78rem; line-height: 1.4; }
+.google-map-shell .gm-style-iw-d span { color: var(--muted); }
+.google-map-shell .gm-bundled-control, .google-map-shell .gmnoprint { margin-right: calc(10px + var(--map-safe-right)) !important; }
+.google-map-shell .gm-bundled-control-on-bottom { bottom: calc(110px + var(--map-safe-bottom)) !important; }
+.map-place-marker.is-live .map-place-icon { width: 22px; height: 22px; background: #fff; color: var(--place-color); border: 2px solid var(--place-color); }
+.map-place-marker.is-live .map-place-icon svg { width: 13px; height: 13px; }
+.map-place-marker.is-live.is-selected .map-place-icon { background: var(--place-color); color: #fff; border-color: #fff; }
+@media (max-width: 959px) { .map-dock:has(.map-place-card) .google-map-shell .gm-bundled-control { visibility: hidden; } }
