@@ -146,9 +146,10 @@ src/core/            framework-free logic (lint blocks React imports here)
   time/              clock.ts (IST), sun.ts (sunrise/sunset)
   export/            googleMaps.ts, files.ts (KML, GPX, text)
   dataset/           validate.ts, load.ts
-  geo.ts, share.ts, identifiers.ts, calibration.ts, types.ts
+  geo.ts, share.ts, identifiers.ts, calibration.ts, types.ts,
+  companion.ts (legs, countdown and margin for the live walk companion)
   livePlaces.ts      Google venue → planner place (category, tags, hours, price, path anchor)
-src/ui/              OutingBuilder (sentence + tray), WalkChooser, WalkDetail, MapDock + RouteMap (MapLibre),
+src/ui/              OutingBuilder (sentence + tray), WalkChooser, WalkDetail, WalkCompanion + walkSession (live walk timer), MapDock + RouteMap (MapLibre),
                      Drawer, AboutPanel, SavedWalks, FieldNotebook, PlanComparison, Backdrop, effects, format
   google/            GoogleRouteMap, loader, live Places service with limits, useGoogle, useLiveStops
 src/storage/         calibrationLog.ts, savedPlans.ts, fieldNotes.ts (localStorage, fail safely)
