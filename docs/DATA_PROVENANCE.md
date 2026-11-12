@@ -1,6 +1,6 @@
 # MIT Manipal map provenance
 
-The saved snapshot was acquired on **1 October 2026**. A fresh request to the same [OpenStreetMap API bounding box](https://api.openstreetmap.org/api/0.6/map.json?bbox=74.786,13.3395,74.7985,13.3555) on that date returned identical content for all **7,099 elements** (6,055 nodes, 1,024 ways and 20 relations). The newest element edit was **2 September 2026**. The original raw file was retained; its SHA-256 and acquisition date are in `snapshot.json`.
+The saved snapshot was acquired on **1 October 2026**. A fresh request to the same [OpenStreetMap API bounding box](https://api.openstreetmap.org/api/0.6/map.json?bbox=74.786,13.3395,74.7985,13.3555) on that date returned identical content for all **7,099 elements** (6,055 nodes, 1,024 ways and 20 relations). The newest element edit was **2 September 2026**. The original raw file was retained; its SHA-256 and acquisition date are in `data/osm/snapshot.json`.
 
 This establishes agreement with the current OSM database, not a campus survey. Map tiles are fetched separately by the browser; refreshing their appearance does not change the route graph.
 
