@@ -32,3 +32,8 @@ test-results/
 .env
 .env.*
 !.env.example
+
+# Remaining editor and OS files
+*~
+Thumbs.db
+desktop.ini
